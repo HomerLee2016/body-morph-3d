@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { catModel } from '../src/models/cat';
 import { defaultParams, solveJoints } from '../src/core/rig';
-import { MAX_HAIRS, hash01, scatterFur, type FurSettings } from '../src/core/fur';
+import { MAX_HAIRS, hash01, rootShade, scatterFur, type FurSettings } from '../src/core/fur';
 import { collectSkinParts, createSkinField, hexToLinear, type SkinPart } from '../src/core/skin';
 import type { PartTransform } from '../src/core/types';
 import { len, type Vec3 } from '../src/core/vec';
@@ -10,7 +10,7 @@ const AXES: PartTransform['axes'] = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
 const ball = (id: string, r: number, at: Vec3 = [0, 0, 0]): SkinPart => ({
   id, shape: 'ellipsoid', color: hexToLinear(0xd98a3d), transform: { position: at, axes: AXES, scale: [r, r, r] },
 });
-const SETTINGS: FurSettings = { density: 4, length: 0.02, messiness: 0 };
+const SETTINGS: FurSettings = { density: 4, length: 0.02, messiness: 0, softness: 1 };
 const at = (a: Float32Array, i: number): Vec3 => [a[i * 3], a[i * 3 + 1], a[i * 3 + 2]];
 
 describe('hash01', () => {
@@ -22,6 +22,29 @@ describe('hash01', () => {
       expect(v).toBeGreaterThanOrEqual(0);
       expect(v).toBeLessThan(1);
     }
+  });
+});
+
+describe('softness', () => {
+  const field = createSkinField([ball('a', 0.1)], 0, 0.003);
+  const spread = (colors: Float32Array): number => {
+    const reds = Array.from({ length: colors.length / 3 }, (_, i) => colors[i * 3]);
+    return Math.max(...reds) - Math.min(...reds);
+  };
+
+  it('softness 0 gives every hair the same colour', () => {
+    expect(spread(scatterFur(field, { ...SETTINGS, softness: 0 }).colors)).toBeCloseTo(0, 6);
+  });
+
+  it('softness adds per-hair brightness variation', () => {
+    expect(spread(scatterFur(field, { ...SETTINGS, softness: 1 }).colors)).toBeGreaterThan(0.01);
+    expect(spread(scatterFur(field, { ...SETTINGS, softness: 2 }).colors)).toBeGreaterThan(spread(scatterFur(field, { ...SETTINGS, softness: 1 }).colors));
+  });
+
+  it('roots get darker as softness rises, and softness 0 is flat', () => {
+    expect(rootShade(0)).toBe(1);
+    expect(rootShade(1)).toBeCloseTo(0.82, 6);
+    expect(rootShade(2)).toBeLessThan(rootShade(1));
   });
 });
 
@@ -157,7 +180,7 @@ describe('cat fur', () => {
   const joints = solveJoints(catModel, params);
   const field = createSkinField(collectSkinParts(catModel, joints, params), catModel.skin!.smoothness(params), catModel.skin!.thickness(params));
   const detail = createSkinField(collectSkinParts(catModel, joints, params, true), 0, 0);
-  const settings = (p: typeof params): FurSettings => ({ density: catModel.fur!.density(p), length: catModel.fur!.length(p), messiness: catModel.fur!.messiness(p) });
+  const settings = (p: typeof params): FurSettings => ({ density: catModel.fur!.density(p), length: catModel.fur!.length(p), messiness: catModel.fur!.messiness(p), softness: catModel.fur!.softness(p) });
 
   it('covers the cat with thousands of hairs at the default settings', () => {
     const fur = scatterFur(field, settings(params), 1, detail);
@@ -181,7 +204,7 @@ describe('cat fur', () => {
 
   it('every fur slider changes the coat', () => {
     const base = scatterFur(field, settings(params), 1, detail);
-    const signature = (f: typeof base) => JSON.stringify([f.count, Array.from(f.lengths.slice(0, 20)), Array.from(f.directions.slice(0, 60))]);
+    const signature = (f: typeof base) => JSON.stringify([f.count, Array.from(f.lengths.slice(0, 20)), Array.from(f.directions.slice(0, 60)), Array.from(f.colors.slice(0, 60))]);
     for (const slider of catModel.sliders.filter((s) => s.group === 'Fur')) {
       for (const value of [slider.min, slider.max]) {
         const p = { ...params, [slider.id]: value };

@@ -87,6 +87,8 @@ export interface FurDef {
   thickness: (p: ShapeParams) => number;
   /** Random direction spread: 0 = combed straight out, 1 = very messy. */
   messiness: (p: ShapeParams) => number;
+  /** Shading contrast: 0 = flat, 1 = soft (default), 2 = high contrast. */
+  softness: (p: ShapeParams) => number;
 }
 
 /**

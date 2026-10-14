@@ -38,7 +38,7 @@ describe('every slider', () => {
       // Skin and fur sliders don't move joints or parts; they change what the skin and fur are made of.
       const look = (p: typeof lo) => [
         catModel.skin?.smoothness(p), catModel.skin?.thickness(p),
-        catModel.fur?.density(p), catModel.fur?.length(p), catModel.fur?.thickness(p), catModel.fur?.messiness(p),
+        catModel.fur?.density(p), catModel.fur?.length(p), catModel.fur?.thickness(p), catModel.fur?.messiness(p), catModel.fur?.softness(p),
       ];
       const signature = (p: typeof lo, j: typeof jointsLo) =>
         JSON.stringify([catModel.parts.map((part) => partTransform(part, j, p)), j, look(p)]);

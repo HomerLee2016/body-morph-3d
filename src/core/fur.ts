@@ -18,6 +18,8 @@ export interface FurSettings {
   length: number;
   /** Direction spread: 0 = straight out of the skin, 1 = very messy. */
   messiness: number;
+  /** Shading contrast: 0 = flat colour, 1 = soft (default look), 2 = high contrast. */
+  softness: number;
 }
 
 export interface Fur {
@@ -46,6 +48,13 @@ const NEIGHBOURHOOD = 0.01;
 const GRADIENT_STEP = 5e-4;
 /** How far a messy hair can lean away from the skin normal. */
 const MESSY_LEAN = 0.8;
+/** Root darkening at softness 1 (root brightness = 1 - this × softness). */
+const ROOT_DARKENING = 0.18;
+/** Per-hair brightness spread at softness 1 (± this). */
+const TINT_SPREAD = 0.07;
+
+/** Brightness of a strand's root relative to its tip, for a given softness. */
+export const rootShade = (softness: number): number => 1 - ROOT_DARKENING * softness;
 
 /** Deterministic hash of three integers to [0, 1). */
 export function hash01(a: number, b: number, c: number): number {
@@ -183,7 +192,7 @@ export function scatterFur(field: SkinField, settings: FurSettings, share = 1, k
       roots[o] = p[0]; roots[o + 1] = p[1]; roots[o + 2] = p[2];
       directions[o] = dir[0]; directions[o + 1] = dir[1]; directions[o + 2] = dir[2];
       lengths[count] = settings.length * (0.75 + 0.5 * hash01(i, k, 6));
-      const tint = 0.88 + 0.24 * hash01(i, k, 7);
+      const tint = 1 + (hash01(i, k, 7) - 0.5) * 2 * TINT_SPREAD * settings.softness;
       const color = field.colorAt(p, around);
       colors[o] = color[0] * tint; colors[o + 1] = color[1] * tint; colors[o + 2] = color[2] * tint;
       count++;
