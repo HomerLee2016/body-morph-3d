@@ -68,17 +68,6 @@ export function buildPanel(root: HTMLElement, model: ModelDef, params: ShapePara
   });
   configActions.append(exportButton, importButton, fileInput);
 
-  if (model.poses?.length) {
-    const poses = el('div', 'poses');
-    for (const preset of model.poses) {
-      const button = el('button', undefined, preset.label);
-      button.type = 'button';
-      button.addEventListener('click', () => handlers.onPose(preset.id));
-      poses.append(button);
-    }
-    header.append(poses);
-  }
-
   const toggles = el('div', 'toggles');
   const addToggle = (label: string, checked: boolean, onChange: (checked: boolean) => void): void => {
     const toggle = el('label', 'toggle');
@@ -97,6 +86,21 @@ export function buildPanel(root: HTMLElement, model: ModelDef, params: ShapePara
   if (model.fur) addToggle('Fur', true, (on) => handlers.onToggleLayer('fur', on));
   header.append(actions, configActions, toggles);
   root.append(header);
+
+  if (model.poses?.length) {
+    const poseGroup = el('details', 'group');
+    poseGroup.open = true;
+    poseGroup.append(el('summary', undefined, 'Pose'));
+    const poses = el('div', 'poses');
+    for (const preset of model.poses) {
+      const button = el('button', undefined, preset.label);
+      button.type = 'button';
+      button.addEventListener('click', () => handlers.onPose(preset.id));
+      poses.append(button);
+    }
+    poseGroup.append(poses);
+    root.append(poseGroup);
+  }
 
   const rows = new Map<string, { input: HTMLInputElement; value: HTMLOutputElement; def: SliderDef }>();
   const colorRows = new Map<string, { input: HTMLInputElement; value: HTMLOutputElement; def: ColorDef }>();
