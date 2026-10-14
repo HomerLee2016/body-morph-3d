@@ -38,6 +38,8 @@ color('Head', 'eyeColor', 'Eye colour', EYE);
 slider('Ears', 'earSize', 'Ear width', 0.5, 2.2);
 slider('Ears', 'earLength', 'Ear length', 0.4, 2.6);
 slider('Ears', 'earFold', 'Ear fold (× 90°)', 0, 1.5, 0); // 0 = upright, 1 = flat out sideways, 1.5 = hanging down
+// Where along the ear the fold happens: 0 = at the root, 0.5 = middle (default), 1 = at the tip. Not a multiplier.
+sliders.push({ id: 'earFoldPos', label: 'Ear fold position (root → tip)', group: 'Ears', min: 0, max: 1, step: 0.01, default: 0.5, unit: '' });
 slider('Neck', 'neckLength', 'Neck length', 0.4, 3);
 slider('Neck', 'neckThickness', 'Neck thickness', 0.5, 2);
 slider('Body', 'torsoLength', 'Torso length', 0.6, 1.8);
@@ -78,11 +80,11 @@ for (const { s, name, x } of sides) {
   // Ears
   // The base sits inside the head so the ear grows out of it (its rim stays within the head surface).
   joint(`earBase${s}`, `${name} ear base`, 'head', [0.034 * x, 0.49, 0.335], (p) => [p.headWidth * p.headSize, p.headSize, p.headSize]);
-  // The ear bends at a hinge halfway up, so the tip folds from the middle of the ear, not its root.
-  // Both halves scale with the ear length; the hinge sits at half the ear, so both get the same factor.
+  // The ear bends at a hinge, placed by the fold position slider (rest: halfway up). The rest hinge is at
+  // half the ear, so scaling each half by 2t / 2(1 - t) puts the hinge at fraction t and keeps the total length.
   const earLen = (p: P): number => p.earLength * p.earSize ** 0.3;
-  joint(`earHinge${s}`, `${name} ear fold`, `earBase${s}`, [0.042 * x, 0.55, 0.33], earLen);
-  joint(`earTip${s}`, `${name} ear tip`, `earHinge${s}`, [0.05 * x, 0.61, 0.325], (p) => earLen(p),
+  joint(`earHinge${s}`, `${name} ear fold`, `earBase${s}`, [0.042 * x, 0.55, 0.33], (p) => earLen(p) * 2 * p.earFoldPos);
+  joint(`earTip${s}`, `${name} ear tip`, `earHinge${s}`, [0.05 * x, 0.61, 0.325], (p) => earLen(p) * 2 * (1 - p.earFoldPos),
     // Fold down and out: swing the tip about a horizontal axis through the hinge (forward + across), so the ear keeps its length.
     (p) => ({ axis: [0.5, 0, -x], angle: p.earFold * (Math.PI / 2) }));
   // Front leg

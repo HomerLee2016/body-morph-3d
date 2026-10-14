@@ -28,6 +28,9 @@ export interface Panel {
   sync(params: ShapeParams): void;
 }
 
+/** Slider value as shown next to it: two decimals and the unit ("×" for multipliers). */
+const formatValue = (def: SliderDef, v: number): string => `${v.toFixed(2)}${def.unit ?? '×'}`;
+
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] => {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -128,7 +131,7 @@ export function buildPanel(root: HTMLElement, model: ModelDef, params: ShapePara
 
     const apply = (v: number): void => {
       input.value = String(v);
-      value.textContent = `${v.toFixed(2)}×`;
+      value.textContent = formatValue(def, v);
     };
     apply(params[def.id] ?? def.default);
 
@@ -188,7 +191,7 @@ export function buildPanel(root: HTMLElement, model: ModelDef, params: ShapePara
       for (const [id, row] of rows) {
         const v = next[id] ?? row.def.default;
         row.input.value = String(v);
-        row.value.textContent = `${v.toFixed(2)}×`;
+        row.value.textContent = formatValue(row.def, v);
       }
       for (const [id, row] of colorRows) {
         row.input.value = toHex(next[id] ?? row.def.default);

@@ -162,3 +162,37 @@ describe('ear fold', () => {
     for (const id of ['head', 'earBaseL', 'earBaseR', 'earHingeL', 'earHingeR', 'nose']) expect(folded[id]).toEqual(up[id]);
   });
 });
+
+describe('ear fold position', () => {
+  const hingeFraction = (earFoldPos: number, side: 'L' | 'R' = 'L') => {
+    const j = solveJoints(catModel, { ...defaults, earFoldPos });
+    const whole = sub(j[`earTip${side}`], j[`earBase${side}`]);
+    return sub(j[`earHinge${side}`], j[`earBase${side}`]).map((c, i) => c / whole[i]);
+  };
+
+  it('is a plain 0–1 position, halfway by default (no × suffix in the panel)', () => {
+    const slider = catModel.sliders.find((s) => s.id === 'earFoldPos')!;
+    expect(slider).toMatchObject({ min: 0, max: 1, default: 0.5, unit: '' });
+  });
+
+  it('puts the hinge at the root for 0, the tip for 1, and the middle at 0.5', () => {
+    expect(hingeFraction(0)[1]).toBeCloseTo(0, 9);
+    expect(hingeFraction(1)[1]).toBeCloseTo(1, 9);
+    expect(hingeFraction(0.5)[1]).toBeCloseTo(0.5, 9);
+  });
+
+  it('moves the hinge monotonically from root to tip', () => {
+    const fractions = [0, 0.25, 0.5, 0.75, 1].map((t) => hingeFraction(t)[1]);
+    for (let i = 1; i < fractions.length; i++) expect(fractions[i]).toBeGreaterThan(fractions[i - 1]);
+  });
+
+  it('keeps the total ear length for every position and fold angle', () => {
+    // Base -> hinge plus hinge -> tip; folding turns the second half but must not shorten it.
+    const length = (earFoldPos: number, earFold: number) => {
+      const j = solveJoints(catModel, { ...defaults, earFoldPos, earFold });
+      return len(sub(j.earHingeL, j.earBaseL)) + len(sub(j.earTipL, j.earHingeL));
+    };
+    const reference = length(0.5, 0);
+    for (const t of [0, 0.3, 1]) for (const f of [0, 1, 1.5]) expect(length(t, f)).toBeCloseTo(reference, 9);
+  });
+});
