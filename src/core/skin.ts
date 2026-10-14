@@ -19,6 +19,10 @@ export interface SkinPart {
   transform: PartTransform;
   /** Linear RGB, 0..1. */
   color: Vec3;
+  /** Joints the part is built on. Two parts blend only when they are connected by joints (see `adjacent`). */
+  joints?: readonly string[];
+  /** Direct parent and children of `joints`. Missing `joints` = the part blends with every part. */
+  adjacent?: readonly string[];
 }
 
 export interface SkinField {
@@ -66,14 +70,29 @@ export function hexToLinear(hex: number): Vec3 {
  * the detail parts come out cleared of the skin (see {@link clearedTransform}).
  */
 export function collectSkinParts(model: ModelDef, joints: JointPositions, params: ShapeParams, detail = false, field?: SkinField): SkinPart[] {
+  const parentOf = new Map(model.joints.map((j) => [j.id, j.parent]));
+  const adjacentTo = (ids: readonly string[]): string[] => {
+    const out = new Set<string>();
+    for (const id of ids) {
+      const parent = parentOf.get(id);
+      if (parent) out.add(parent);
+      for (const j of model.joints) if (j.parent === id) out.add(j.id);
+    }
+    return [...out];
+  };
   return model.parts
     .filter((part) => (part.skin === false) === detail)
-    .map((part) => ({
-      id: part.id,
-      shape: part.kind === 'segment' && part.shape === 'cone' ? ('cone' as const) : ('ellipsoid' as const),
-      transform: detail && field ? clearedTransform(part, joints, params, field) : partTransform(part, joints, params),
-      color: hexToLinear(partColor(part, params)),
-    }));
+    .map((part) => {
+      const own = part.kind === 'segment' ? [part.from, part.to] : [part.at, ...(part.lerpTo ? [part.lerpTo.joint] : [])];
+      return {
+        id: part.id,
+        shape: part.kind === 'segment' && part.shape === 'cone' ? ('cone' as const) : ('ellipsoid' as const),
+        transform: detail && field ? clearedTransform(part, joints, params, field) : partTransform(part, joints, params),
+        color: hexToLinear(partColor(part, params)),
+        joints: own,
+        adjacent: adjacentTo(own),
+      };
+    });
 }
 
 /**
@@ -104,6 +123,19 @@ function liftOutOfSkin(field: SkinField, point: Vec3, dir: Vec3, margin: number)
 
 // Flat per-part record: centre (3), axes (9), scale (3), box min (3), box max (3).
 const STRIDE = 21;
+
+const overlaps = (a: readonly string[] = [], b: readonly string[] = []): boolean => a.some((id) => b.includes(id));
+
+/** Two parts are linked when they share a joint, or a joint of one is a direct parent or child of a joint of the other. */
+function linked(a: SkinPart, b: SkinPart): boolean {
+  if (!a.joints || !b.joints) return true;
+  return overlaps(a.joints, b.joints) || overlaps(a.joints, b.adjacent) || overlaps(b.joints, a.adjacent);
+}
+
+/** For each part, the indices of the parts it is linked to (itself included). */
+function linkLists(parts: readonly SkinPart[]): number[][] {
+  return parts.map((a, i) => parts.flatMap((b, j) => (i === j || linked(a, b) ? [j] : [])));
+}
 
 export function createSkinField(parts: readonly SkinPart[], smoothness: number, thickness: number): SkinField {
   const k = Math.max(0, smoothness);
@@ -138,6 +170,9 @@ export function createSkinField(parts: readonly SkinPart[], smoothness: number, 
   });
 
   const scratch = new Float64Array(n);
+  const dist = new Float64Array(n);
+  const inSet = new Uint8Array(n);
+  const links = linkLists(parts);
 
   const distance = (i: number, x: number, y: number, z: number): number => {
     const o = i * STRIDE;
@@ -175,16 +210,28 @@ export function createSkinField(parts: readonly SkinPart[], smoothness: number, 
   const valueXYZ = (x: number, y: number, z: number, subset?: ArrayLike<number>): number => {
     const count = subset ? subset.length : n;
     if (count === 0) return margin;
-    let min = Infinity;
     for (let t = 0; t < count; t++) {
-      const d = distance(subset ? subset[t] : t, x, y, z);
-      scratch[t] = d;
-      if (d < min) min = d;
+      const i = subset ? subset[t] : t;
+      dist[i] = distance(i, x, y, z);
+      inSet[i] = 1;
     }
-    if (k < 1e-6) return min - offset;
-    let sum = 0;
-    for (let t = 0; t < count; t++) sum += Math.exp(-(scratch[t] - min) / k);
-    return min - k * Math.log(sum) - offset;
+    // Each part is smooth-unioned only with the parts it is linked to; the field is the hard minimum over those.
+    let best = Infinity;
+    for (let t = 0; t < count; t++) {
+      const i = subset ? subset[t] : t;
+      if (k < 1e-6) {
+        best = Math.min(best, dist[i]);
+        continue;
+      }
+      const around = links[i];
+      let min = Infinity;
+      for (const j of around) if (inSet[j] && dist[j] < min) min = dist[j];
+      let sum = 0;
+      for (const j of around) if (inSet[j]) sum += Math.exp(-(dist[j] - min) / k);
+      best = Math.min(best, min - k * Math.log(sum));
+    }
+    for (let t = 0; t < count; t++) inSet[subset ? subset[t] : t] = 0;
+    return best - offset;
   };
 
   const near = (min: Vec3, max: Vec3, pad = 0): number[] => {

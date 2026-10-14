@@ -67,6 +67,52 @@ describe('skin field', () => {
   });
 });
 
+describe('skin blends only joint-linked parts', () => {
+  const at = (id: string, joints: string[], adjacent: string[], x: number): SkinPart => ({ ...ball(id, [x, 0, 0], 0.1), joints, adjacent });
+
+  it('does not bridge two parts that are not connected by a joint', () => {
+    const field = createSkinField([at('a', ['a'], [], -0.2), at('b', ['b'], [], 0.2)], 0.05, 0);
+    expect(field.value([0, 0, 0])).toBeCloseTo(0.1, 6); // hard union: the gap between them stays open
+  });
+
+  it('bridges two parts that share a joint', () => {
+    const field = createSkinField([at('a', ['j'], [], -0.2), at('b', ['j'], [], 0.2)], 0.05, 0);
+    expect(field.value([0, 0, 0])).toBeLessThan(0.09);
+  });
+
+  it('bridges a part to its direct parent or child joint', () => {
+    const field = createSkinField([at('a', ['p'], ['c'], -0.2), at('b', ['c'], ['p'], 0.2)], 0.05, 0);
+    expect(field.value([0, 0, 0])).toBeLessThan(0.09);
+  });
+
+  it('keeps siblings under one joint apart only when they do not share a joint', () => {
+    const field = createSkinField([at('a', ['x'], ['p'], -0.2), at('b', ['y'], ['p'], 0.2)], 0.05, 0);
+    expect(field.value([0, 0, 0])).toBeCloseTo(0.1, 6);
+  });
+});
+
+describe('cat skin links', () => {
+  const params = defaultParams(catModel);
+  const parts = collectSkinParts(catModel, solveJoints(catModel, params), params);
+  const index = (prefix: string): number => parts.findIndex((p) => p.id.startsWith(prefix));
+  const centre = (i: number): Vec3 => parts[i].transform.position;
+  const field = createSkinField(parts, 0.02, 0);
+
+  it('does not merge the tail with the leg', () => {
+    const tail = index('tail1');
+    const thigh = index('thigh');
+    const mid: Vec3 = [0, 0, 0].map((_, a) => (centre(tail)[a] + centre(thigh)[a]) / 2) as Vec3;
+    expect(field.value(mid, [tail, thigh])).toBeCloseTo(Math.min(field.partDistance(tail, mid), field.partDistance(thigh, mid)), 6);
+  });
+
+  it('still blends the tail into the body it grows from', () => {
+    const tail = index('tail1');
+    const pelvis = index('pelvisBlob');
+    const mid: Vec3 = [0, 0, 0].map((_, a) => (centre(tail)[a] + centre(pelvis)[a]) / 2) as Vec3;
+    expect(field.value(mid, [tail, pelvis])).toBeLessThan(Math.min(field.partDistance(tail, mid), field.partDistance(pelvis, mid)));
+  });
+});
+
 describe('skin mesh', () => {
   const R = 0.1;
   const sphere = meshSkin(createSkinField([ball('a', [0, 0.2, 0], R)], 0, 0), 0.008);
