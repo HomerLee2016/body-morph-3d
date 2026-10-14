@@ -1,6 +1,7 @@
 import './style.css';
 import { catModel } from './models/cat';
 import { validateModel } from './core/rig';
+import { findPose, poseFromDisplacements } from './core/pose';
 import { Viewer } from './viewer/Viewer';
 import { buildPanel } from './ui/panel';
 
@@ -39,6 +40,10 @@ const panel = buildPanel(panelRoot, model, viewer.params, {
     panel.sync(viewer.params);
   },
   onResetPose: () => viewer.resetPose(),
+  onPose: (id) => {
+    const preset = findPose(model, id);
+    if (preset) viewer.setPose(poseFromDisplacements(model, preset.displace));
+  },
   onToggleJoints: (visible) => viewer.setJointsVisible(visible),
   onToggleLayer: (layer, visible) => viewer.setLayerVisible(layer, visible),
 });
