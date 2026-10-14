@@ -157,12 +157,40 @@ const eyeOffset = (p: P, x: number): [number, number, number] => {
   return [0.08 * u * p.headSize * p.headWidth, 0.07 * v * p.headSize, 0.075 * w * p.headSize];
 };
 
+/** Eye layers stacked on the same centre: dark lid rim behind, iris, vertical slit pupil, small glint in front. */
+const EYE_RIM = 0x1c1612;
+const PUPIL = 0x0b0907;
+const GLINT = 0xf5f5f0;
+const eyeLayer = (p: P, x: number, dz: number): [number, number, number] => {
+  const [l, v, f] = eyeOffset(p, x);
+  return [l, v, f + dz * p.eyeSize * p.headSize];
+};
+
 for (const { s, x } of sides) {
   parts.push(
     {
+      kind: 'blob', id: `eyeRim${s}`, at: 'head', facing: HEAD, color: EYE_RIM, skin: false,
+      radii: (p) => [0.019 * p.eyeSize * p.headSize, 0.017 * p.eyeSize * p.headSize, 0.007 * p.eyeSize * p.headSize],
+      offset: (p) => eyeLayer(p, x, -0.002),
+    },
+    {
       kind: 'blob', id: `eye${s}`, at: 'head', facing: HEAD, color: (p) => p.eyeColor, skin: false,
-      radii: (p) => [0.014 * p.eyeSize * p.headSize, 0.016 * p.eyeSize * p.headSize, 0.01 * p.eyeSize * p.headSize],
-      offset: (p) => eyeOffset(p, x),
+      radii: (p) => [0.016 * p.eyeSize * p.headSize, 0.013 * p.eyeSize * p.headSize, 0.01 * p.eyeSize * p.headSize],
+      offset: (p) => eyeLayer(p, x, 0),
+    },
+    {
+      kind: 'blob', id: `eyePupil${s}`, at: 'head', facing: HEAD, color: PUPIL, skin: false,
+      radii: (p) => [0.0035 * p.eyeSize * p.headSize, 0.0115 * p.eyeSize * p.headSize, 0.0022 * p.eyeSize * p.headSize],
+      offset: (p) => eyeLayer(p, x, 0.0095),
+    },
+    {
+      kind: 'blob', id: `eyeGlint${s}`, at: 'head', facing: HEAD, color: GLINT, skin: false,
+      radii: (p) => [0.0028 * p.eyeSize * p.headSize, 0.0028 * p.eyeSize * p.headSize, 0.0012 * p.eyeSize * p.headSize],
+      offset: (p) => {
+        const [l, v, f] = eyeLayer(p, x, 0.0105);
+        // Glint on the outer, upper part of each eye, as in the reference photo.
+        return [l + Math.sign(x) * 0.0055 * p.eyeSize * p.headSize, v + 0.0055 * p.eyeSize * p.headSize, f];
+      },
     },
     // Two halves meeting at the fold hinge; the upper half is a little slimmer so the ear still tapers.
     {
@@ -235,16 +263,33 @@ parts.push(
 const ZERO: Vec3 = [0, 0, 0];
 const pair = (name: string, d: Vec3): Record<string, Vec3> => ({ [`${name}L`]: d, [`${name}R`]: d });
 
+// Left/right limb offsets mirror each other: the left x is kept, the right x is negated.
+const mirrored = (name: string, d: Vec3): Record<string, Vec3> => ({
+  [`${name}L`]: d,
+  [`${name}R`]: [-d[0], d[1], d[2]],
+});
+
+// Sitting: haunches down and folded forward, torso upright, forelegs straight under the shoulders.
 const SIT: Record<string, Vec3> = {
-  pelvis: [0, -0.13, -0.05],
-  chest: [0, -0.06, 0.03],
-  head: [0, 0.04, 0.03],
-  ...pair('knee', [0, -0.04, 0.12]),
-  ...pair('hock', [0, -0.06, 0.26]),
-  ...pair('hindPaw', [0, 0, 0.33]),
-  ...pair('shoulder', ZERO),
-  ...pair('elbow', ZERO),
-  ...pair('frontPaw', ZERO),
+  pelvis: [0, -0.195, 0.24],
+  chest: [0, 0.0325, 0.012],
+  neck: [0, 0.0325, -0.066],
+  head: [0, 0.04, 0.022],
+  ...mirrored('hip', [0.036, -0.195, 0.24]),
+  ...mirrored('knee', [0.046, -0.04, 0.274]),
+  ...mirrored('hock', [0.046, -0.06, 0.414]),
+  ...mirrored('hindPaw', [0.046, 0, 0.484]),
+  ...mirrored('shoulder', [0.012, 0, -0.018]),
+  ...pair('elbow', [0, 0, 0.03]),
+  ...pair('frontPaw', [0, 0, 0.08]),
+  nose: [0, 0.04, 0.03],
+  ...pair('earBase', [0, 0.04, 0.03]),
+  ...pair('earHinge', [0, 0.04, 0.03]),
+  ...pair('earTip', [0, 0.04, 0.03]),
+  tail1: [0, -0.26, 0.288],
+  tail2: [0, -0.159, 0.251],
+  tail3: [0, -0.13, 0.262],
+  tail4: [0, -0.13, 0.281],
 };
 
 const poses: PosePreset[] = [
