@@ -3,6 +3,7 @@ import { catModel } from './models/cat';
 import { validateModel } from './core/rig';
 import { findPose, poseFromDisplacements } from './core/pose';
 import { exportConfig, importConfig } from './core/config';
+import { AXIS_LEGEND } from './core/move';
 import { Viewer } from './viewer/Viewer';
 import { buildPanel, downloadText } from './ui/panel';
 
@@ -33,7 +34,19 @@ const renderHud = (): void => {
     hint.textContent = 'Click a blue joint to pose it';
   }
   hud.append(title, hint);
+  if (ids.length > 0) hud.append(axisLegend);
 };
+
+// Shows which keys move along which world axis; the axes do not turn with the camera.
+const axisLegend = document.createElement('dl');
+axisLegend.className = 'hud-axes';
+for (const row of AXIS_LEGEND) {
+  const keys = document.createElement('dt');
+  keys.textContent = row.keys;
+  const axis = document.createElement('dd');
+  axis.textContent = row.axis;
+  axisLegend.append(keys, axis);
+}
 
 const viewer = new Viewer(viewport, model, { onSelect: renderHud });
 
