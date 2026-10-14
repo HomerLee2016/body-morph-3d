@@ -89,12 +89,24 @@ export interface FurDef {
   messiness: (p: ShapeParams) => number;
 }
 
+/**
+ * Named pose. `displace` gives where each joint ends up relative to its rest position (model space).
+ * Joints not listed follow their parent.
+ */
+export interface PosePreset {
+  id: string;
+  label: string;
+  displace: Record<string, Vec3>;
+}
+
 export interface ModelDef {
   id: string;
   name: string;
   joints: JointDef[];
   parts: PartDef[];
   sliders: SliderDef[];
+  /** Pose presets offered in the panel. */
+  poses?: PosePreset[];
   /** Joints that should rest on the ground; the whole model is lifted so the lowest one sits at `groundClearance`. */
   groundJoints: string[];
   groundClearance: number;

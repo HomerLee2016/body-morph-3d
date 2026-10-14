@@ -4,6 +4,7 @@ export interface PanelHandlers {
   onParam: (id: string, value: number) => void;
   onResetShape: () => void;
   onResetPose: () => void;
+  onPose: (id: string) => void;
   onToggleJoints: (visible: boolean) => void;
   onToggleLayer: (layer: LayerId, visible: boolean) => void;
 }
@@ -32,6 +33,17 @@ export function buildPanel(root: HTMLElement, model: ModelDef, params: ShapePara
   resetShape.addEventListener('click', handlers.onResetShape);
   resetPose.addEventListener('click', handlers.onResetPose);
   actions.append(resetShape, resetPose);
+
+  if (model.poses?.length) {
+    const poses = el('div', 'poses');
+    for (const preset of model.poses) {
+      const button = el('button', undefined, preset.label);
+      button.type = 'button';
+      button.addEventListener('click', () => handlers.onPose(preset.id));
+      poses.append(button);
+    }
+    header.append(poses);
+  }
 
   const toggles = el('div', 'toggles');
   const addToggle = (label: string, checked: boolean, onChange: (checked: boolean) => void): void => {

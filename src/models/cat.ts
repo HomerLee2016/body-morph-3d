@@ -1,4 +1,4 @@
-import type { JointDef, ModelDef, PartDef, ShapeParams, SliderDef } from '../core/types';
+import type { JointDef, ModelDef, PartDef, PosePreset, ShapeParams, SliderDef } from '../core/types';
 import type { Vec3 } from '../core/vec';
 
 // Procedural cat: facing +Z, +Y up, +X is the cat's left, ground at y = 0.
@@ -198,12 +198,89 @@ parts.push(
   },
 );
 
+// --- Pose presets ----------------------------------------------------------
+// Each entry is where a joint ends up relative to its rest position (metres).
+// Joints not listed follow their parent; a paw listed at [0, 0, 0] stays planted.
+const ZERO: Vec3 = [0, 0, 0];
+const pair = (name: string, d: Vec3): Record<string, Vec3> => ({ [`${name}L`]: d, [`${name}R`]: d });
+
+const SIT: Record<string, Vec3> = {
+  pelvis: [0, -0.13, -0.05],
+  chest: [0, -0.06, 0.03],
+  head: [0, 0.04, 0.03],
+  ...pair('knee', [0, -0.04, 0.12]),
+  ...pair('hock', [0, -0.06, 0.26]),
+  ...pair('hindPaw', [0, 0, 0.33]),
+  ...pair('shoulder', ZERO),
+  ...pair('elbow', ZERO),
+  ...pair('frontPaw', ZERO),
+};
+
+const poses: PosePreset[] = [
+  { id: 'sit', label: 'Sitting', displace: SIT },
+  {
+    id: 'maneki', label: 'Maneki-neko', displace: {
+      ...SIT,
+      head: [0, 0.05, 0.05],
+      elbowL: [0.01, 0.06, 0.1],
+      frontPawL: [0.02, 0.22, 0.14],
+    },
+  },
+  {
+    id: 'wave', label: 'Waving', displace: {
+      elbowR: [-0.08, 0.1, 0.1],
+      frontPawR: [-0.16, 0.2, 0.12],
+    },
+  },
+  {
+    id: 'jump', label: 'Jumping', displace: {
+      pelvis: [0, 0.25, -0.04],
+      chest: [0, 0.27, 0.02],
+      head: [0, 0.29, 0.12],
+      ...pair('elbow', [0, 0.27, 0.1]),
+      ...pair('frontPaw', [0, 0.27, 0.3]),
+      ...pair('knee', [0, 0.25, 0.02]),
+      ...pair('hock', [0, 0.25, -0.08]),
+      ...pair('hindPaw', [0, 0.25, -0.05]),
+    },
+  },
+  {
+    id: 'lick', label: 'Licking hand', displace: {
+      ...SIT,
+      head: [0, 0, 0.08],
+      elbowR: [0.02, 0.2, 0.14],
+      frontPawR: [0.05, 0.37, 0.18],
+    },
+  },
+  {
+    id: 'eat', label: 'Eating', displace: {
+      neck: [0, -0.12, 0.1],
+      head: [0, -0.3, 0.22],
+    },
+  },
+  {
+    id: 'guard', label: 'Guarding', displace: {
+      pelvis: [0, -0.06, -0.02],
+      chest: [0, -0.1, 0.04],
+      neck: [0, -0.12, 0.1],
+      head: [0, -0.06, 0.2],
+      tail1: [0, -0.12, -0.04],
+      ...pair('knee', [0, -0.05, 0]),
+      ...pair('elbow', [0, -0.07, 0.04]),
+      ...pair('hock', ZERO),
+      ...pair('hindPaw', ZERO),
+      ...pair('frontPaw', ZERO),
+    },
+  },
+];
+
 export const catModel: ModelDef = {
   id: 'cat',
   name: 'Cat',
   joints,
   parts,
   sliders,
+  poses,
   groundJoints: ['frontPawL', 'frontPawR', 'hindPawL', 'hindPawR'],
   groundClearance: 0.024,
   sizeParam: 'size',

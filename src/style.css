@@ -73,6 +73,18 @@ body {
   cursor: pointer;
 }
 .panel-actions button:hover { border-color: var(--accent); }
+.poses { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.poses button {
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.poses button:hover { border-color: var(--accent); }
 .toggles { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 12px 0 4px; }
 .toggle { display: flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; }
 

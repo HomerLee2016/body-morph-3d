@@ -124,10 +124,16 @@ export class Viewer {
     this.dirty = true;
   }
 
-  resetPose(): void {
+  /** Replaces the whole pose (shape is untouched). */
+  setPose(pose: Pose): void {
     for (const key of Object.keys(this.pose)) delete this.pose[key];
+    Object.assign(this.pose, pose);
     this.dirty = true;
     this.events.onPoseChange?.();
+  }
+
+  resetPose(): void {
+    this.setPose({});
   }
 
   setLayerVisible(layer: LayerId, visible: boolean): void {
