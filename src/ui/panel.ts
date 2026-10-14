@@ -7,6 +7,20 @@ export interface PanelHandlers {
   onPose: (id: string) => void;
   onToggleJoints: (visible: boolean) => void;
   onToggleLayer: (layer: LayerId, visible: boolean) => void;
+  onExportConfig: () => void;
+  /** Called with the text of the chosen file. Throw to report a bad file. */
+  onImportConfig: (text: string) => void;
+}
+
+/** Saves `text` as a file through a temporary download link. */
+export function downloadText(filename: string, text: string, type: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  // Revoking straight away can cancel the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export interface Panel {
@@ -33,6 +47,23 @@ export function buildPanel(root: HTMLElement, model: ModelDef, params: ShapePara
   resetShape.addEventListener('click', handlers.onResetShape);
   resetPose.addEventListener('click', handlers.onResetPose);
   actions.append(resetShape, resetPose);
+
+  const configActions = el('div', 'panel-actions config-actions');
+  const exportButton = el('button', undefined, 'Export config');
+  const importButton = el('button', undefined, 'Import config');
+  exportButton.type = importButton.type = 'button';
+  const fileInput = el('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'application/json,.json';
+  fileInput.hidden = true;
+  exportButton.addEventListener('click', handlers.onExportConfig);
+  importButton.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files?.[0];
+    fileInput.value = ''; // so picking the same file again still fires `change`
+    if (file) handlers.onImportConfig(await file.text());
+  });
+  configActions.append(exportButton, importButton, fileInput);
 
   if (model.poses?.length) {
     const poses = el('div', 'poses');
@@ -61,7 +92,7 @@ export function buildPanel(root: HTMLElement, model: ModelDef, params: ShapePara
     addToggle('Skin', true, (on) => handlers.onToggleLayer('skin', on));
   }
   if (model.fur) addToggle('Fur', true, (on) => handlers.onToggleLayer('fur', on));
-  header.append(actions, toggles);
+  header.append(actions, configActions, toggles);
   root.append(header);
 
   const rows = new Map<string, { input: HTMLInputElement; value: HTMLOutputElement; def: SliderDef }>();

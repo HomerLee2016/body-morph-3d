@@ -24,6 +24,7 @@ Requires Node 20.19+ or 22.12+.
 | Deselect | `Esc` |
 | Reshape a body part | Sliders in the right-hand panel (double-click a label to reset one) |
 | Reset | **Reset pose** / **Reset shape** buttons |
+| Save / load a config | **Export config** / **Import config** (JSON file with shape and pose) |
 
 Moving a joint moves everything attached to it (children follow); the limbs stretch to stay connected.
 
