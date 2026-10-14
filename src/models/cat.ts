@@ -18,6 +18,10 @@ const slider = (group: string, id: string, label: string, min: number, max: numb
 slider('Whole body', 'size', 'Overall size', 0.5, 1.8);
 slider('Skin', 'skinSmoothness', 'Smoothness', 0, 4);
 slider('Skin', 'skinThickness', 'Thickness', 0, 4);
+slider('Fur', 'furDensity', 'Density', 0, 3);
+slider('Fur', 'furLength', 'Length', 0, 3);
+slider('Fur', 'furThickness', 'Strand thickness', 0.3, 3);
+slider('Fur', 'furMessiness', 'Messiness', 0, 3);
 slider('Head', 'headSize', 'Head size', 0.6, 1.8);
 slider('Head', 'headWidth', 'Head width', 0.6, 1.6);
 slider('Head', 'snoutLength', 'Snout length', 0.4, 2.2);
@@ -202,5 +206,11 @@ export const catModel: ModelDef = {
   skin: {
     smoothness: (p) => 0.012 * p.skinSmoothness,
     thickness: (p) => 0.003 * p.skinThickness,
+  },
+  fur: {
+    density: (p) => 8 * p.furDensity,
+    length: (p) => 0.018 * p.furLength,
+    thickness: (p) => 0.0018 * p.furThickness,
+    messiness: (p) => 0.35 * p.furMessiness,
   },
 };

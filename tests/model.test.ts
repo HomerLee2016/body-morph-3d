@@ -35,8 +35,11 @@ describe('every slider', () => {
       const hi = { ...defaults, [slider.id]: slider.max };
       const jointsLo = solveJoints(catModel, lo);
       const jointsHi = solveJoints(catModel, hi);
-      // Skin sliders don't move joints or parts; they change what the skin is made of.
-      const look = (p: typeof lo) => [catModel.skin?.smoothness(p), catModel.skin?.thickness(p)];
+      // Skin and fur sliders don't move joints or parts; they change what the skin and fur are made of.
+      const look = (p: typeof lo) => [
+        catModel.skin?.smoothness(p), catModel.skin?.thickness(p),
+        catModel.fur?.density(p), catModel.fur?.length(p), catModel.fur?.thickness(p), catModel.fur?.messiness(p),
+      ];
       const signature = (p: typeof lo, j: typeof jointsLo) =>
         JSON.stringify([catModel.parts.map((part) => partTransform(part, j, p)), j, look(p)]);
       expect(signature(lo, jointsLo)).not.toBe(signature(hi, jointsHi));

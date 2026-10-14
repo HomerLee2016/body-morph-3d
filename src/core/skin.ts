@@ -34,8 +34,8 @@ export interface SkinField {
   partDistance(index: number, p: Vec3): number;
   /** Indices of the parts that can influence the box `[min, max]` grown by `pad`. */
   near(min: Vec3, max: Vec3, pad?: number): number[];
-  /** Skin colour at `p` (linear RGB): the colours of the nearby parts, blended. */
-  colorAt(p: Vec3): Vec3;
+  /** Skin colour at `p` (linear RGB): the colours of the nearby parts, blended. `subset` limits it to some part indices. */
+  colorAt(p: Vec3, subset?: ArrayLike<number>): Vec3;
 }
 
 export interface SkinMesh {
@@ -60,10 +60,13 @@ export function hexToLinear(hex: number): Vec3 {
   return [srgbToLinear(((hex >> 16) & 255) / 255), srgbToLinear(((hex >> 8) & 255) / 255), srgbToLinear((hex & 255) / 255)];
 }
 
-/** Transforms of every part that takes part in the skin (those not marked `skin: false`). */
-export function collectSkinParts(model: ModelDef, joints: JointPositions, params: ShapeParams): SkinPart[] {
+/**
+ * Transforms of the parts that take part in the skin (those not marked `skin: false`), or with
+ * `detail` the opposite set: the parts drawn as their own meshes (eyes, nose).
+ */
+export function collectSkinParts(model: ModelDef, joints: JointPositions, params: ShapeParams, detail = false): SkinPart[] {
   return model.parts
-    .filter((part) => part.skin !== false)
+    .filter((part) => (part.skin === false) === detail)
     .map((part) => ({
       id: part.id,
       shape: part.kind === 'segment' && part.shape === 'cone' ? ('cone' as const) : ('ellipsoid' as const),
@@ -136,7 +139,10 @@ export function createSkinField(parts: readonly SkinPart[], smoothness: number, 
     // Ellipsoid distance estimate (Inigo Quilez): k0 (k0 - 1) / k1.
     const k0 = Math.sqrt(ux * ux + uy * uy + uz * uz);
     const k1 = Math.sqrt((ux * ux) / (sx * sx) + (uy * uy) / (sy * sy) + (uz * uz) / (sz * sz));
-    return k1 < 1e-9 ? -Math.min(sx, sy, sz) : (k0 * (k0 - 1)) / k1;
+    const rmin = Math.min(sx, sy, sz);
+    // Deep inside, the estimate depends on the direction and can run past the true depth; no
+    // point of the ellipsoid is deeper than its smallest radius.
+    return k1 < 1e-9 ? -rmin : Math.max((k0 * (k0 - 1)) / k1, -rmin);
   };
 
   const valueXYZ = (x: number, y: number, z: number, subset?: ArrayLike<number>): number => {
@@ -167,21 +173,21 @@ export function createSkinField(parts: readonly SkinPart[], smoothness: number, 
     return out;
   };
 
-  const colorAt = (p: Vec3): Vec3 => {
-    const around = near(p, p);
+  const colorAt = (p: Vec3, subset?: ArrayLike<number>): Vec3 => {
+    const around = subset ?? near(p, p);
     if (around.length === 0) return NO_COLOR;
     const width = COLOR_BLEND + k;
     let min = Infinity;
-    around.forEach((i, t) => {
-      scratch[t] = distance(i, p[0], p[1], p[2]);
+    for (let t = 0; t < around.length; t++) {
+      scratch[t] = distance(around[t], p[0], p[1], p[2]);
       min = Math.min(min, scratch[t]);
-    });
+    }
     let r = 0, g = 0, b = 0, total = 0;
-    around.forEach((i, t) => {
+    for (let t = 0; t < around.length; t++) {
       const w = Math.exp(-(scratch[t] - min) / width);
-      const c = parts[i].color;
+      const c = parts[around[t]].color;
       r += c[0] * w; g += c[1] * w; b += c[2] * w; total += w;
-    });
+    }
     return [r / total, g / total, b / total];
   };
 
@@ -226,12 +232,12 @@ export function meshSkin(field: SkinField, voxel: number): SkinMesh {
     [nx, ny, nz] = dims();
   }
 
-  // Sample the field. Probe each block at its centre first: when the surface is
-  // too far away to cross the block, fill it with that value and skip the rest.
+  // Sample the field. Probe each block at its corners and centre first: when they all agree on
+  // inside/outside and are far from the surface, fill the block with the centre value and skip it.
   const strideY = nx;
   const strideZ = nx * ny;
   const values = new Float32Array(nx * ny * nz).fill(field.margin);
-  const reach = (BLOCK - 1) * h * 0.87 + h; // half block diagonal + a cell, field is ~1-Lipschitz
+  const reach = (BLOCK - 1) * h * 0.87 + h; // half a block diagonal plus a cell
   for (let bz = 0; bz < nz; bz += BLOCK) {
     for (let by = 0; by < ny; by += BLOCK) {
       for (let bx = 0; bx < nx; bx += BLOCK) {
@@ -242,12 +248,16 @@ export function meshSkin(field: SkinField, voxel: number): SkinMesh {
         const hi: Vec3 = [origin[0] + (ex - 1) * h, origin[1] + (ey - 1) * h, origin[2] + (ez - 1) * h];
         const subset = field.near(lo, hi, 2 * h);
         if (subset.length === 0) continue;
-        const probe = field.value([(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2], subset);
-        const exact = Math.abs(probe) <= reach * 1.5;
+        const centre = field.value([(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2], subset);
+        let exact = Math.abs(centre) <= reach * 1.5;
+        for (let c = 0; c < 8 && !exact; c++) {
+          const v = field.value([c & 1 ? hi[0] : lo[0], c & 2 ? hi[1] : lo[1], c & 4 ? hi[2] : lo[2]], subset);
+          exact = v < 0 !== centre < 0 || Math.abs(v) <= reach * 1.5;
+        }
         for (let k = bz; k < ez; k++) {
           for (let j = by; j < ey; j++) {
             for (let i = bx; i < ex; i++) {
-              values[i + j * strideY + k * strideZ] = exact ? field.value([origin[0] + i * h, origin[1] + j * h, origin[2] + k * h], subset) : probe;
+              values[i + j * strideY + k * strideZ] = exact ? field.value([origin[0] + i * h, origin[1] + j * h, origin[2] + k * h], subset) : centre;
             }
           }
         }

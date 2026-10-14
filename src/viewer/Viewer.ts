@@ -2,9 +2,11 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { defaultParams, modelScale, solveJoints } from '../core/rig';
 import { partTransform } from '../core/parts';
+import { scatterFur } from '../core/fur';
 import { collectSkinParts, createSkinField, meshSkin } from '../core/skin';
 import type { LayerId, ModelDef, Pose, ShapeParams } from '../core/types';
 import type { Vec3 } from '../core/vec';
+import { FurMesh } from './FurMesh';
 import { SkinMesh } from './SkinMesh';
 
 const MARKER_RADIUS = 0.016;
@@ -14,7 +16,9 @@ const CLICK_MAX_PIXELS = 5;
 
 // Skin grid spacing (metres): coarse while the shape or pose is changing, fine once it settles.
 const SKIN_VOXEL_LIVE = 0.016;
-const SKIN_VOXEL_FINE = 0.007;
+const SKIN_VOXEL_FINE = 0.008;
+// Share of the hairs grown while things are changing (a subset of the full coat).
+const FUR_SHARE_LIVE = 0.06;
 const SETTLE_MS = 160;
 
 const COLORS = { idle: 0x2d9cdb, hover: 0xffffff, selected: 0xffd400 };
@@ -46,6 +50,7 @@ export class Viewer {
   private readonly markers = new Map<string, THREE.Mesh>();
   private readonly bones: THREE.LineSegments;
   private readonly skinMesh = new SkinMesh();
+  private readonly furMesh = new FurMesh();
   private readonly layers: Record<LayerId, boolean> = { muscles: false, skin: true, fur: true };
 
   private readonly keys = new Set<string>();
@@ -53,7 +58,9 @@ export class Viewer {
   private hovered: string | null = null;
   private pointerDown: { x: number; y: number } | null = null;
   private dirty = true;
-  private settleAt: number | null = null;
+  /** What is still to refine once the model stops changing: the detailed skin, then the full coat. */
+  private settleStep: 'skin' | 'fur' | null = null;
+  private settleAt = 0;
   private frame = 0;
 
   constructor(private readonly container: HTMLElement, private readonly model: ModelDef, private readonly events: ViewerEvents = {}) {
@@ -80,7 +87,7 @@ export class Viewer {
       this.bodyGroup.add(mesh);
     }
     this.scene.add(this.bodyGroup);
-    this.bodyGroup.add(this.skinMesh.object);
+    this.bodyGroup.add(this.skinMesh.object, this.furMesh.object);
     this.applyLayers();
 
     // Joint markers + skeleton lines, drawn on top of the body.
@@ -165,6 +172,7 @@ export class Viewer {
     this.unbind();
     this.controls.dispose();
     this.skinMesh.dispose();
+    this.furMesh.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
@@ -187,6 +195,7 @@ export class Viewer {
     sun.shadow.camera.near = 0.5;
     sun.shadow.camera.far = 8;
     sun.shadow.bias = -0.0005;
+    sun.shadow.normalBias = 0.006; // the skin receives its own shadow; this stops the striping at grazing angles
     this.scene.add(sun);
 
     const floor = new THREE.Mesh(new THREE.CircleGeometry(6, 64), new THREE.MeshStandardMaterial({ color: 0xdfe4ea, roughness: 1 }));
@@ -317,10 +326,12 @@ export class Viewer {
     if (this.dirty) {
       this.rebuild();
       this.dirty = false;
+      this.settleStep = 'skin';
       this.settleAt = performance.now() + SETTLE_MS;
-    } else if (this.settleAt !== null && performance.now() >= this.settleAt) {
-      this.rebuildSkin(true); // nothing changed for a moment: spend time on the detailed skin
-      this.settleAt = null;
+    } else if (this.settleStep && performance.now() >= this.settleAt) {
+      // Nothing changed for a moment: refine, one step per frame so there is no single long stall.
+      this.rebuildSurfaces(this.settleStep === 'skin' ? 'fine-skin' : 'fine-fur');
+      this.settleStep = this.settleStep === 'skin' ? 'fur' : null;
     }
     this.renderer.render(this.scene, this.camera);
   };
@@ -359,6 +370,7 @@ export class Viewer {
       this.partMeshes.get(part.id)!.visible = !skin || this.layers.muscles || part.skin === false;
     }
     this.skinMesh.object.visible = !!skin && this.layers.skin;
+    this.furMesh.object.visible = !!skin && !!this.model.fur && this.layers.fur;
     this.skinMesh.setGhost(this.layers.muscles);
   }
 
@@ -366,7 +378,7 @@ export class Viewer {
     const scale = modelScale(this.model, this.params);
     const joints = solveJoints(this.model, this.params, this.pose);
     this.bodyGroup.scale.setScalar(scale);
-    this.rebuildSkin(false, joints);
+    this.rebuildSurfaces('live', joints);
 
     const m = new THREE.Matrix4();
     for (const part of this.model.parts) {
@@ -389,12 +401,26 @@ export class Viewer {
     this.bones.geometry.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3));
   }
 
-  private rebuildSkin(fine: boolean, joints = solveJoints(this.model, this.params, this.pose)): void {
-    const skin = this.model.skin;
-    if (!skin || !this.layers.skin) return;
+  /** Skin mesh and fur: coarse/sparse while changing (`live`), detailed once settled (`fine-skin`, then `fine-fur`). */
+  private rebuildSurfaces(detail: 'live' | 'fine-skin' | 'fine-fur', joints = solveJoints(this.model, this.params, this.pose)): void {
+    const { skin, fur } = this.model;
+    if (!skin) return;
+    const showSkin = this.layers.skin;
+    const showFur = !!fur && this.layers.fur;
+    if (!showSkin && !showFur) return;
+
     const parts = collectSkinParts(this.model, joints, this.params);
     const field = createSkinField(parts, skin.smoothness(this.params), skin.thickness(this.params));
-    this.skinMesh.update(meshSkin(field, fine ? SKIN_VOXEL_FINE : SKIN_VOXEL_LIVE));
+    if (showSkin && detail !== 'fine-fur') this.skinMesh.update(meshSkin(field, detail === 'live' ? SKIN_VOXEL_LIVE : SKIN_VOXEL_FINE));
+    if (showFur && detail !== 'fine-skin') {
+      const bare = createSkinField(collectSkinParts(this.model, joints, this.params, true), 0, 0);
+      const settings = {
+        density: fur.density(this.params),
+        length: fur.length(this.params),
+        messiness: fur.messiness(this.params),
+      };
+      this.furMesh.update(scatterFur(field, settings, detail === 'live' ? FUR_SHARE_LIVE : 1, bare), fur.thickness(this.params));
+    }
   }
 
   private refreshMarkerColors(): void {

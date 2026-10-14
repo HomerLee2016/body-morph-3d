@@ -31,8 +31,11 @@
   - `vec.ts`: vector maths.
   - `rig.ts`: `solveJoints` (shape + pose → joint positions), grounding, validation.
   - `parts.ts`: `partTransform` (segment/blob → position, axes, scale).
+  - `skin.ts`: smooth union of the parts ("muscles") → one mesh (surface nets).
+  - `fur.ts`: hairs scattered on the parts, rooted on the skin.
 - `src/models/`: one file per character, declarative data (`cat.ts`). Adding a character = adding a file here.
 - `src/viewer/Viewer.ts`: three.js scene, OrbitControls, joint picking, keyboard posing. Model-agnostic.
+  - `SkinMesh.ts`, `FurMesh.ts`: skin mesh and instanced hairs.
 - `src/ui/panel.ts`: right-hand slider panel (plain DOM). Model-agnostic.
 - `src/main.ts`: wires model, viewer, panel and HUD.
 - `tests/`: Vitest tests for `src/core` and `src/models`. New logic there needs a test.
@@ -45,6 +48,9 @@
 - Units: metres, +Y up, +Z forward, ground at y = 0.
 - The viewer scales the body by `sizeParam`. Divide world-space input by that scale before storing it in the pose.
 - Joint markers draw on top and are picked by distance to the pointer ray. A press selects only if the pointer moved < 5 px.
+- Skin (`ModelDef.skin`) and fur (`ModelDef.fur`) are slider-driven too (smoothness, thickness; density, length, strand thickness, messiness).
+- Parts with `skin: false` (eyes, nose) stay separate meshes and bare; keep them proud of the head surface.
+- Skin/fur rebuild coarse while changing, full detail after ~160 ms idle. Keep `src/core` fast (no per-frame allocations in hot loops).
 - Arrow keys must keep moving the joint after a slider was used (sliders blur on pointer-up and on key press).
 
 # Assets and licensing
