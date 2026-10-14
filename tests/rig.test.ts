@@ -51,13 +51,12 @@ describe('solveJoints', () => {
     expect(d(long) / d(short)).toBeCloseTo(4, 5);
   });
 
-  it('moves child joints with their parent when a joint is posed', () => {
+  it('moves only the posed joint, not its children or parent', () => {
     const base = solveJoints(catModel, defaults);
     const moved = solveJoints(catModel, defaults, { chest: [0, 0.1, 0] });
     expect(moved.chest[1] - base.chest[1]).toBeCloseTo(0.1, 6);
-    expect(moved.head[1] - base.head[1]).toBeCloseTo(0.1, 6);
-    expect(moved.shoulderL[1] - base.shoulderL[1]).toBeCloseTo(0.1, 6);
-    // Parent and siblings stay put.
+    expect(moved.head).toEqual(base.head);
+    expect(moved.shoulderL).toEqual(base.shoulderL);
     expect(moved.pelvis).toEqual(base.pelvis);
     expect(moved.hipL).toEqual(base.hipL);
   });
@@ -65,7 +64,8 @@ describe('solveJoints', () => {
   it('does not re-ground the model when only the pose changes', () => {
     const base = solveJoints(catModel, defaults);
     const raised = solveJoints(catModel, defaults, { pelvis: [0, 0.2, 0] });
-    expect(raised.frontPawL[1] - base.frontPawL[1]).toBeCloseTo(0.2, 6);
+    expect(raised.pelvis[1] - base.pelvis[1]).toBeCloseTo(0.2, 6);
+    expect(raised.frontPawL).toEqual(base.frontPawL);
   });
 
   it('rejects broken models', () => {

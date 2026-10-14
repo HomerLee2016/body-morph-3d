@@ -1,10 +1,11 @@
 import type { ModelDef, Pose, PosePreset } from './types';
-import { sub, type Vec3 } from './vec';
+import type { Vec3 } from './vec';
 
 /**
  * Converts "where each joint ends up relative to rest" into the per-joint offsets
- * the viewer stores. A child's offset is measured from its parent's displacement,
- * because children follow their parent. Joints not listed follow their parent.
+ * the viewer stores. Joints are independent, so each offset is the joint's own
+ * displacement. A joint not listed takes its parent's displacement, so presets
+ * can move a whole limb by listing only its top joint.
  */
 export function poseFromDisplacements(model: ModelDef, displace: Record<string, Vec3>): Pose {
   const total: Record<string, Vec3> = {};
@@ -13,8 +14,7 @@ export function poseFromDisplacements(model: ModelDef, displace: Record<string, 
     const parentTotal: Vec3 = j.parent ? total[j.parent] : [0, 0, 0];
     const t = displace[j.id] ?? parentTotal;
     total[j.id] = t;
-    const offset = sub(t, parentTotal);
-    if (offset[0] !== 0 || offset[1] !== 0 || offset[2] !== 0) pose[j.id] = offset;
+    if (t[0] !== 0 || t[1] !== 0 || t[2] !== 0) pose[j.id] = [t[0], t[1], t[2]];
   }
   return pose;
 }

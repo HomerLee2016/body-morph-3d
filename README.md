@@ -27,7 +27,7 @@ Requires Node 20.19+ or 22.12+.
 | Reset | **Reset pose** / **Reset shape** buttons |
 | Save / load a config | **Export config** / **Import config** (JSON file with shape and pose) |
 
-Moving a joint moves everything attached to it (children follow); the limbs stretch to stay connected.
+Each joint moves on its own; the body parts between joints stretch to follow it.
 
 ## Scripts
 
