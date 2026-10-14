@@ -5,8 +5,13 @@
 
 # About this project
 
-- Visual Deck: a lightweight browser image tool for making mobile-game art/assets (used alongside another game repo).
-- Stack: TypeScript + Vite, no UI framework, plain DOM + Canvas 2D. Keep dependencies minimal.
+- Body Morph 3D: a browser app to pose and reshape a 3D character live. First model: a cat.
+- Mouse: drag to orbit, scroll to zoom.
+- Click a joint to select it. Move it with W/A/S/D (camera-relative, ground plane) and ↑/↓ (vertical). Shift = faster, Esc = deselect. Children follow.
+- Right-hand panel: one slider per body-part dimension (head, ears, neck, leg width, tail, ...).
+- Stack: TypeScript (strict) + Vite + three.js + Vitest. Plain DOM panel, no UI framework. Keep dependencies minimal.
+- Everything is bundled via npm. No CDN scripts.
+- Static site: `npm run build` outputs `dist/`. Deployed to GitHub Pages by `.github/workflows/deploy.yaml`.
 - Run: `npm install`, `npm run dev`.
 
 # Checks (run before reporting done)
@@ -15,22 +20,38 @@
 - Unit tests: `npm test`
 - Production build: `npm run build`
 - For UI changes, also drive the app in a browser (Playwright/Chromium) and look at a screenshot.
+- Headless Chromium needs software GL: `--use-angle=swiftshader --use-gl=angle --enable-unsafe-swiftshader`.
 - Report each result; show the failures if any check fails.
+- CI: `unit_test.yaml` runs the tests on every PR and every push to main (merges included). `ci.yml` runs typecheck + build.
 
 # Architecture
 
-- `src/types.ts`: item/layer/document types. `DocState` is **immutable**: never mutate it, build a new one.
-- `src/model.ts`: `Workspace` (one tab): state, selection, history snapshots (with thumbnails), layer/item operations. No DOM here, so it is unit-testable.
-- `src/geometry.ts`: arc/curve math, hit-testing, bounds. Pure functions.
-- `src/view.ts`: pure zoom/pan/fit maths. `View` is readonly: replace it, never mutate it.
-- `src/render.ts`: all canvas drawing (`drawScene`), thumbnails, selection overlay. No state, no status writes.
-- `src/svg.ts`: SVG export (pure string output, shapes as paths).
-- `src/io.ts`: file import (image decode), export and download helpers.
-- `src/editor.ts`: main canvas input only (tools, select/move/copy/paste/delete, zoom/pan, shortcuts). Describes a `Scene`; `render.ts` draws it.
-- `src/scripting.ts`: the `deck` API and script runner. Scripts are JavaScript, saved in `localStorage`.
-- `src/ui.ts`: `App` owns the open workspaces and wires editor to panels.
-- `src/panels/`: one class per DOM panel (menubar, tabbar, history, layers, toolbox, scripts). Each has `render()` and reads the workspace via `ActiveWorkspace`.
-- Edits go through `Workspace.edit(label, fn)`: a label records a history step, `null` does not (scripts record one step per run).
+- `src/core/`: pure TypeScript, **no three.js, no DOM**, so it is unit-testable in node.
+  - `types.ts`: `ModelDef`, `JointDef`, parts, sliders.
+  - `vec.ts`: vector maths.
+  - `rig.ts`: `solveJoints` (shape + pose → joint positions), grounding, validation.
+  - `parts.ts`: `partTransform` (segment/blob → position, axes, scale).
+- `src/models/`: one file per character, declarative data (`cat.ts`). Adding a character = adding a file here.
+- `src/viewer/Viewer.ts`: three.js scene, OrbitControls, joint picking, keyboard posing. Model-agnostic.
+- `src/ui/panel.ts`: right-hand slider panel (plain DOM). Model-agnostic.
+- `src/main.ts`: wires model, viewer, panel and HUD.
+- `tests/`: Vitest tests for `src/core` and `src/models`. New logic there needs a test.
+
+# Model rules
+
+- Shape and pose are separate state: `ShapeParams` (slider id → multiplier, 1 = default) and `Pose` (joint id → offset in model space). Changing one never resets the other.
+- Sliders are multipliers (step 0.01, default 1). Joint `scale()` sets lengths, part `radii()` sets thickness. Left/right share one slider.
+- `solveJoints` lifts the model so `groundJoints` rest on y = 0 for the shape only. Pose is applied after and never re-grounds.
+- Units: metres, +Y up, +Z forward, ground at y = 0.
+- The viewer scales the body by `sizeParam`. Divide world-space input by that scale before storing it in the pose.
+- Joint markers draw on top and are picked by distance to the pointer ray. A press selects only if the pointer moved < 5 px.
+- Arrow keys must keep moving the joint after a slider was used (sliders blur on pointer-up and on key press).
+
+# Assets and licensing
+
+- Third-party models/textures must be CC0 or CC-BY (redistributable). Put them in `public/models/`.
+- Credit each in `public/models/CREDITS.md`: source URL, author, license. Never commit one with an unknown license.
+- The v1 cat is procedural. Replacing it with a rigged `.glb` is follow-up work: map glTF bones onto `JointDef`s, don't fork the viewer.
 
 # Working on a big story or epic
 
@@ -51,8 +72,15 @@ When a story/epic has several sub-issues:
 # Branch naming
 
 - Use a type prefix: `feature/`, `bug/`, `refactor/`.
-- Then the issue number (if any) and a short kebab-case description, e.g. `feature/12-arc-tool`.
+- Then the issue number (if any) and a short kebab-case description, e.g. `feature/1-cat-pose-and-shape-editor`.
 - Never use auto-generated names like `claude/modest-fayman-ahuz4`.
+
+# Pull requests
+
+- Every change starts from a GitHub issue.
+- PR targets `main` and links the ticket with `Closes #<n>`.
+- PR body: summary, how it was verified, known limitations.
+- Never commit `node_modules/`, `dist/`, or secrets.
 
 # Code structure
 
