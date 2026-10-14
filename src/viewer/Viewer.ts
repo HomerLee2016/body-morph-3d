@@ -418,8 +418,9 @@ export class Viewer {
         density: fur.density(this.params),
         length: fur.length(this.params),
         messiness: fur.messiness(this.params),
+        softness: fur.softness(this.params),
       };
-      this.furMesh.update(scatterFur(field, settings, detail === 'live' ? FUR_SHARE_LIVE : 1, bare), fur.thickness(this.params));
+      this.furMesh.update(scatterFur(field, settings, detail === 'live' ? FUR_SHARE_LIVE : 1, bare), fur.thickness(this.params), settings.softness);
     }
   }
 

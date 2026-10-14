@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { MAX_HAIRS, type Fur } from '../core/fur';
+import { MAX_HAIRS, rootShade, type Fur } from '../core/fur';
 
 /** Unit strand: a tapered three-sided spike, radius 1 and height 1, darker at the root. */
-function strandGeometry(): THREE.BufferGeometry {
+function strandGeometry(root: number): THREE.BufferGeometry {
   const rings: { y: number; radius: number; shade: number }[] = [
-    { y: 0, radius: 1, shade: 0.82 },
+    { y: 0, radius: 1, shade: root },
     { y: 0.45, radius: 0.65, shade: 0.9 },
   ];
   const positions: number[] = [];
@@ -50,17 +50,20 @@ export class FurMesh {
   private readonly side = new THREE.Vector3();
   private readonly other = new THREE.Vector3();
   private readonly dir = new THREE.Vector3();
+  private root: number;
 
   constructor() {
-    this.object = new THREE.InstancedMesh(strandGeometry(), this.material, MAX_HAIRS);
+    this.root = rootShade(1);
+    this.object = new THREE.InstancedMesh(strandGeometry(this.root), this.material, MAX_HAIRS);
     this.object.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_HAIRS * 3), 3);
     this.object.count = 0;
     this.object.frustumCulled = false;
     this.object.receiveShadow = true;
   }
 
-  /** `thickness` is the strand width at the root, in metres. */
-  update(fur: Fur, thickness: number): void {
+  /** `thickness` is the strand width at the root, in metres. `softness` sets how dark the roots are. */
+  update(fur: Fur, thickness: number, softness: number): void {
+    this.setRootShade(rootShade(softness));
     const matrices = this.object.instanceMatrix.array as Float32Array;
     const radius = thickness / 2;
     for (let i = 0; i < fur.count; i++) {
@@ -81,6 +84,15 @@ export class FurMesh {
     this.object.count = fur.count;
     this.object.instanceMatrix.needsUpdate = true;
     this.object.instanceColor!.needsUpdate = true;
+  }
+
+  /** Recolour the strand's root vertices (the first ring) when the shading changes. */
+  private setRootShade(shade: number): void {
+    if (shade === this.root) return;
+    this.root = shade;
+    const colors = this.object.geometry.getAttribute('color') as THREE.BufferAttribute;
+    for (let v = 0; v < 3; v++) colors.setXYZ(v, shade, shade, shade);
+    colors.needsUpdate = true;
   }
 
   dispose(): void {
