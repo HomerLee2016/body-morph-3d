@@ -8,11 +8,6 @@ import { dot, len, sub } from '../src/core/vec';
 const defaults = defaultParams(catModel);
 const sliderValues = (which: 'min' | 'max') => Object.fromEntries(catModel.sliders.map((s) => [s.id, s[which]]));
 
-const descendants = (id: string): string[] => {
-  const kids = catModel.joints.filter((j) => j.parent === id).map((j) => j.id);
-  return kids.flatMap((k) => [k, ...descendants(k)]);
-};
-
 describe('every slider', () => {
   for (const slider of catModel.sliders) {
     it(`${slider.id}: stays valid at its min and max`, () => {
@@ -57,32 +52,32 @@ describe('extreme shapes', () => {
   });
 });
 
-describe('pose propagation', () => {
+describe('joint independence', () => {
   const base = solveJoints(catModel, defaults);
   const delta: [number, number, number] = [0.05, 0.1, -0.02];
 
   for (const joint of catModel.joints) {
-    it(`moving ${joint.id} moves exactly its subtree`, () => {
+    it(`moving ${joint.id} moves only that joint`, () => {
       const moved = solveJoints(catModel, defaults, { [joint.id]: delta });
-      const subtree = new Set([joint.id, ...descendants(joint.id)]);
       for (const other of catModel.joints) {
         const shift = sub(moved[other.id], base[other.id]);
-        if (subtree.has(other.id)) {
+        if (other.id === joint.id) {
           expect(shift[0]).toBeCloseTo(delta[0], 9);
           expect(shift[1]).toBeCloseTo(delta[1], 9);
           expect(shift[2]).toBeCloseTo(delta[2], 9);
         } else {
-          expect(len(shift)).toBeCloseTo(0, 9);
+          expect(len(shift), `${other.id} moved`).toBeCloseTo(0, 9);
         }
       }
     });
   }
 
-  it('accumulates offsets from several joints', () => {
+  it('applies offsets from several joints without them adding up', () => {
     const moved = solveJoints(catModel, defaults, { chest: [0, 0.1, 0], head: [0.02, 0, 0] });
+    expect(moved.chest[1] - base.chest[1]).toBeCloseTo(0.1, 9);
     expect(moved.head[0] - base.head[0]).toBeCloseTo(0.02, 9);
-    expect(moved.head[1] - base.head[1]).toBeCloseTo(0.1, 9);
-    expect(moved.nose[0] - base.nose[0]).toBeCloseTo(0.02, 9);
+    expect(moved.head[1] - base.head[1]).toBeCloseTo(0, 9);
+    expect(len(sub(moved.nose, base.nose))).toBeCloseTo(0, 9);
   });
 
   it('applies the same pose offset on top of any shape', () => {

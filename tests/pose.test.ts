@@ -7,11 +7,19 @@ const defaults = defaultParams(catModel);
 const jointIds = new Set(catModel.joints.map((j) => j.id));
 
 describe('poseFromDisplacements', () => {
-  it('turns total displacements into offsets relative to the parent', () => {
+  it('stores each listed joint its own displacement', () => {
     const model = { ...catModel, poses: [] };
     const pose = poseFromDisplacements(model, { pelvis: [0, 0.1, 0], chest: [0, 0.3, 0] });
     expect(pose.pelvis).toEqual([0, 0.1, 0]);
-    expect(pose.chest![1]).toBeCloseTo(0.2, 9);
+    expect(pose.chest).toEqual([0, 0.3, 0]);
+  });
+
+  it('gives an unlisted joint its parent displacement, so presets move whole limbs', () => {
+    const model = { ...catModel, poses: [] };
+    const pose = poseFromDisplacements(model, { chest: [0, 0.3, 0] });
+    expect(pose.head).toEqual([0, 0.3, 0]);
+    expect(pose.shoulderL).toEqual([0, 0.3, 0]);
+    expect(pose.pelvis).toBeUndefined();
   });
 
   it('lands each joint at its requested displacement in the solved skeleton', () => {

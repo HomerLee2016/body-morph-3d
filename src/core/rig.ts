@@ -33,13 +33,12 @@ const jointScale = (j: JointDef, params: ShapeParams): Vec3 => {
   return typeof s === 'number' ? [s, s, s] : s;
 };
 
-function solve(model: ModelDef, params: ShapeParams, pose: Pose, rootShift: Vec3): JointPositions {
-  const world: JointPositions = {};
+/** Rest positions for the shape alone: each joint's rest offset from its parent, scaled and rotated by the shape. */
+function restPositions(model: ModelDef, params: ShapeParams, rootShift: Vec3): JointPositions {
   const rest: JointPositions = {};
   for (const j of model.joints) {
     if (j.parent === null) {
-      rest[j.id] = j.pos;
-      world[j.id] = add(add(j.pos, rootShift), pose[j.id] ?? [0, 0, 0]);
+      rest[j.id] = add(j.pos, rootShift);
       continue;
     }
     const parent = model.joints.find((p) => p.id === j.parent)!;
@@ -50,22 +49,29 @@ function solve(model: ModelDef, params: ShapeParams, pose: Pose, rootShift: Vec3
       offset = rotateAround(offset, normalize(axis), angle);
     }
     rest[j.id] = add(rest[j.parent], offset);
-    world[j.id] = add(add(world[j.parent], offset), pose[j.id] ?? [0, 0, 0]);
   }
-  return world;
+  return rest;
 }
 
 /**
  * Joint positions in model space for the given shape and pose.
+ *
+ * Each joint is its rest position plus its own pose offset. Joints are independent:
+ * moving a parent does not move its children.
  *
  * The model is lifted/lowered so its ground joints rest on the floor for the
  * *shape* alone (pose offsets are applied on top), so lengthening the legs
  * never sinks the cat into the ground.
  */
 export function solveJoints(model: ModelDef, params: ShapeParams, pose: Pose = {}): JointPositions {
-  const restPose = solve(model, params, {}, [0, 0, 0]);
+  const restPose = restPositions(model, params, [0, 0, 0]);
   const lowest = Math.min(...model.groundJoints.map((id) => restPose[id][1]));
-  return solve(model, params, pose, [0, model.groundClearance - lowest, 0]);
+  const joints = restPositions(model, params, [0, model.groundClearance - lowest, 0]);
+  for (const j of model.joints) {
+    const offset = pose[j.id];
+    if (offset) joints[j.id] = add(joints[j.id], offset);
+  }
+  return joints;
 }
 
 export function modelScale(model: ModelDef, params: ShapeParams): number {

@@ -7,7 +7,7 @@
 
 - Body Morph 3D: a browser app to pose and reshape a 3D character live. First model: a cat.
 - Mouse: drag to orbit, scroll to zoom.
-- Click a joint to select it; Shift/Ctrl/Cmd+click adds or removes one. Move the selection with W/A/S/D (camera-relative, ground plane) and ↑/↓ (vertical). Shift = faster, Esc = deselect all. Children follow.
+- Click a joint to select it; Shift/Ctrl/Cmd+click adds or removes one. Move the selection with W/A/S/D (camera-relative, ground plane) and ↑/↓ (vertical). Shift = faster, Esc = deselect all. Each joint moves alone; children stay put.
 - Right-hand panel: one slider per body-part dimension (head, ears, neck, leg width, tail, ...).
 - Stack: TypeScript (strict) + Vite + three.js + Vitest. Plain DOM panel, no UI framework. Keep dependencies minimal.
 - Everything is bundled via npm. No CDN scripts.
@@ -45,6 +45,7 @@
 - Shape and pose are separate state: `ShapeParams` (slider id → multiplier, 1 = default) and `Pose` (joint id → offset in model space). Changing one never resets the other.
 - Sliders are multipliers (step 0.01, default 1). Joint `scale()` sets lengths, part `radii()` sets thickness. Left/right share one slider.
 - `solveJoints` lifts the model so `groundJoints` rest on y = 0 for the shape only. Pose is applied after and never re-grounds.
+- Joints are independent: a joint's position = its rest position + its own pose offset. Moving a parent never moves its children. Presets fill in children themselves (`poseFromDisplacements`).
 - Units: metres, +Y up, +Z forward, ground at y = 0.
 - The viewer scales the body by `sizeParam`. Divide world-space input by that scale before storing it in the pose.
 - Joint markers draw on top and are picked by distance to the pointer ray. A press selects only if the pointer moved < 5 px.
