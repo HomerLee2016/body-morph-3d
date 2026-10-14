@@ -49,6 +49,11 @@ function blobTransform(part: BlobPart, joints: JointPositions, params: ShapePara
   return { position, axes, scale: part.radii(params) };
 }
 
+/** The part's colour (0xrrggbb) for the current params. */
+export function partColor(part: PartDef, params: ShapeParams): number {
+  return typeof part.color === 'function' ? part.color(params) : part.color;
+}
+
 export function partTransform(part: PartDef, joints: JointPositions, params: ShapeParams): PartTransform {
   return part.kind === 'segment' ? segmentTransform(part, joints, params) : blobTransform(part, joints, params);
 }

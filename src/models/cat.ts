@@ -1,4 +1,4 @@
-import type { JointDef, ModelDef, PartDef, PosePreset, ShapeParams, SliderDef } from '../core/types';
+import type { ColorDef, JointDef, ModelDef, PartDef, PosePreset, ShapeParams, SliderDef } from '../core/types';
 import type { Vec3 } from '../core/vec';
 
 // Procedural cat: facing +Z, +Y up, +X is the cat's left, ground at y = 0.
@@ -27,6 +27,14 @@ slider('Head', 'headSize', 'Head size', 0.6, 1.8);
 slider('Head', 'headWidth', 'Head width', 0.6, 1.6);
 slider('Head', 'snoutLength', 'Snout length', 0.4, 2.2);
 slider('Head', 'eyeSize', 'Eye size', 0.5, 2.2);
+slider('Head', 'eyeSpacing', 'Eye spacing (close ↔ wide)', 0.7, 1.4);
+slider('Head', 'eyeHeight', 'Eye height', 0.5, 1.6);
+
+const colors: ColorDef[] = [];
+const color = (group: string, id: string, label: string, def: number): void => {
+  colors.push({ id, label, group, default: def });
+};
+color('Head', 'eyeColor', 'Eye colour', EYE);
 slider('Ears', 'earSize', 'Ear width', 0.5, 2.2);
 slider('Ears', 'earLength', 'Ear length', 0.4, 2.6);
 slider('Ears', 'earFold', 'Ear fold (× 90°)', 0, 1.5, 0); // 0 = upright, 1 = flat out sideways, 1.5 = hanging down
@@ -131,13 +139,24 @@ parts.push(
   },
 );
 
+/**
+ * Eye centre in the head's local frame. Spacing and height move it across the head ellipsoid; the
+ * forward offset is solved from the ellipsoid so the eye always sits on the surface (not inside it,
+ * so the skin does not bury it). Fractions are of the head radii (lateral 0.08, vertical 0.07, forward 0.075).
+ */
+const eyeOffset = (p: P, x: number): [number, number, number] => {
+  const u = 0.55 * p.eyeSpacing * x;
+  const v = 0.33 * p.eyeHeight;
+  const w = Math.sqrt(Math.max(0, 1 - u * u - v * v));
+  return [0.08 * u * p.headSize * p.headWidth, 0.07 * v * p.headSize, 0.075 * w * p.headSize];
+};
+
 for (const { s, x } of sides) {
   parts.push(
     {
-      kind: 'blob', id: `eye${s}`, at: 'head', facing: HEAD, color: EYE, skin: false,
+      kind: 'blob', id: `eye${s}`, at: 'head', facing: HEAD, color: (p) => p.eyeColor, skin: false,
       radii: (p) => [0.014 * p.eyeSize * p.headSize, 0.016 * p.eyeSize * p.headSize, 0.01 * p.eyeSize * p.headSize],
-      // Sit on the head surface (not inside it) so the skin does not bury them.
-      offset: (p) => [0.044 * x * p.headSize * p.headWidth, 0.023 * p.headSize, 0.058 * p.headSize],
+      offset: (p) => eyeOffset(p, x),
     },
     {
       kind: 'segment', id: `ear${s}`, from: `earBase${s}`, to: `earTip${s}`, shape: 'cone', color: FUR,
@@ -282,6 +301,7 @@ export const catModel: ModelDef = {
   parts,
   sliders,
   poses,
+  colors,
   groundJoints: ['frontPawL', 'frontPawR', 'hindPawL', 'hindPawR'],
   groundClearance: 0.024,
   sizeParam: 'size',

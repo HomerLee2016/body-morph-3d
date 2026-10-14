@@ -1,5 +1,5 @@
 import type { JointPositions } from './rig';
-import { partTransform } from './parts';
+import { partColor, partTransform } from './parts';
 import type { ModelDef, PartTransform, ShapeParams } from './types';
 import type { Vec3 } from './vec';
 
@@ -71,7 +71,7 @@ export function collectSkinParts(model: ModelDef, joints: JointPositions, params
       id: part.id,
       shape: part.kind === 'segment' && part.shape === 'cone' ? ('cone' as const) : ('ellipsoid' as const),
       transform: partTransform(part, joints, params),
-      color: hexToLinear(part.color),
+      color: hexToLinear(partColor(part, params)),
     }));
 }
 

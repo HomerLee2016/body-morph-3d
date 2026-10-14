@@ -1,4 +1,4 @@
-import type { LayerId, ModelDef, ShapeParams, SliderDef } from '../core/types';
+import type { ColorDef, LayerId, ModelDef, ShapeParams, SliderDef } from '../core/types';
 
 export interface PanelHandlers {
   onParam: (id: string, value: number) => void;
@@ -65,18 +65,22 @@ export function buildPanel(root: HTMLElement, model: ModelDef, params: ShapePara
   root.append(header);
 
   const rows = new Map<string, { input: HTMLInputElement; value: HTMLOutputElement; def: SliderDef }>();
+  const colorRows = new Map<string, { input: HTMLInputElement; value: HTMLOutputElement; def: ColorDef }>();
   const groups = new Map<string, HTMLDetailsElement>();
-
-  for (const def of model.sliders) {
-    let group = groups.get(def.group);
+  const groupFor = (name: string): HTMLDetailsElement => {
+    let group = groups.get(name);
     if (!group) {
       group = el('details', 'group');
       group.open = true;
-      group.append(el('summary', undefined, def.group));
-      groups.set(def.group, group);
+      group.append(el('summary', undefined, name));
+      groups.set(name, group);
       root.append(group);
     }
+    return group;
+  };
 
+  for (const def of model.sliders) {
+    const group = groupFor(def.group);
     const row = el('div', 'row');
     const id = `slider-${def.id}`;
     const label = el('label', undefined, def.label);
@@ -114,6 +118,40 @@ export function buildPanel(root: HTMLElement, model: ModelDef, params: ShapePara
     rows.set(def.id, { input, value, def });
   }
 
+  for (const def of model.colors ?? []) {
+    const group = groupFor(def.group);
+    const row = el('div', 'row');
+    const id = `color-${def.id}`;
+    const label = el('label', undefined, def.label);
+    label.htmlFor = id;
+    label.title = 'Double-click to reset';
+    const value = el('output');
+    value.htmlFor = id;
+    const input = el('input');
+    input.type = 'color';
+    input.id = id;
+
+    const apply = (hex: number): void => {
+      input.value = toHex(hex);
+      value.textContent = input.value;
+    };
+    apply(params[def.id] ?? def.default);
+
+    input.addEventListener('input', () => {
+      const hex = parseInt(input.value.slice(1), 16);
+      apply(hex);
+      handlers.onParam(def.id, hex);
+    });
+    label.addEventListener('dblclick', () => {
+      apply(def.default);
+      handlers.onParam(def.id, def.default);
+    });
+
+    row.append(label, value, input);
+    group.append(row);
+    colorRows.set(def.id, { input, value, def });
+  }
+
   return {
     sync(next) {
       for (const [id, row] of rows) {
@@ -121,6 +159,13 @@ export function buildPanel(root: HTMLElement, model: ModelDef, params: ShapePara
         row.input.value = String(v);
         row.value.textContent = `${v.toFixed(2)}×`;
       }
+      for (const [id, row] of colorRows) {
+        row.input.value = toHex(next[id] ?? row.def.default);
+        row.value.textContent = row.input.value;
+      }
     },
   };
 }
+
+/** 0xrrggbb -> '#rrggbb' for `<input type="color">`. */
+const toHex = (hex: number): string => `#${hex.toString(16).padStart(6, '0')}`;

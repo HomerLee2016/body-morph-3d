@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { defaultParams, modelScale, solveJoints } from '../core/rig';
-import { partTransform } from '../core/parts';
+import { partColor, partTransform } from '../core/parts';
 import { scatterFur } from '../core/fur';
 import { collectSkinParts, createSkinField, meshSkin } from '../core/skin';
 import type { LayerId, ModelDef, Pose, ShapeParams } from '../core/types';
@@ -80,7 +80,7 @@ export class Viewer {
     const cone = new THREE.ConeGeometry(1, 1, 24);
     for (const part of model.parts) {
       const geometry = part.kind === 'segment' && part.shape === 'cone' ? cone : sphere;
-      const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: part.color, roughness: 0.85 }));
+      const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: partColor(part, this.params), roughness: 0.85 }));
       mesh.castShadow = true;
       mesh.matrixAutoUpdate = false;
       this.partMeshes.set(part.id, mesh);
@@ -392,7 +392,9 @@ export class Viewer {
       const [x, y, z] = t.axes;
       m.makeBasis(new THREE.Vector3(...x).multiplyScalar(t.scale[0]), new THREE.Vector3(...y).multiplyScalar(t.scale[1]), new THREE.Vector3(...z).multiplyScalar(t.scale[2]));
       m.setPosition(...t.position);
-      this.partMeshes.get(part.id)!.matrix.copy(m);
+      const mesh = this.partMeshes.get(part.id)!;
+      mesh.matrix.copy(m);
+      (mesh.material as THREE.MeshStandardMaterial).color.setHex(partColor(part, this.params));
     }
 
     const lines: number[] = [];
