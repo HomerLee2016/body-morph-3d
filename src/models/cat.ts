@@ -38,6 +38,8 @@ color('Head', 'eyeColor', 'Eye colour', EYE);
 slider('Ears', 'earSize', 'Ear width', 0.5, 2.2);
 slider('Ears', 'earLength', 'Ear length', 0.4, 2.6);
 slider('Ears', 'earFold', 'Ear fold (× 90°)', 0, 1.5, 0); // 0 = upright, 1 = flat out sideways, 1.5 = hanging down
+// Where along the ear the fold happens: 0 = at the root, 0.5 = middle (default), 1 = at the tip. Not a multiplier.
+sliders.push({ id: 'earFoldPos', label: 'Ear fold position (root → tip)', group: 'Ears', min: 0, max: 1, step: 0.01, default: 0.5, unit: '' });
 slider('Neck', 'neckLength', 'Neck length', 0.4, 3);
 slider('Neck', 'neckThickness', 'Neck thickness', 0.5, 2);
 slider('Body', 'torsoLength', 'Torso length', 0.6, 1.8);
@@ -78,8 +80,12 @@ for (const { s, name, x } of sides) {
   // Ears
   // The base sits inside the head so the ear grows out of it (its rim stays within the head surface).
   joint(`earBase${s}`, `${name} ear base`, 'head', [0.034 * x, 0.49, 0.335], (p) => [p.headWidth * p.headSize, p.headSize, p.headSize]);
-  joint(`earTip${s}`, `${name} ear tip`, `earBase${s}`, [0.05 * x, 0.61, 0.325], (p) => p.earLength * p.earSize ** 0.3,
-    // Fold down and out: swing the tip about a horizontal axis (forward + across), so the ear keeps its length.
+  // The ear bends at a hinge, placed by the fold position slider (rest: halfway up). The rest hinge is at
+  // half the ear, so scaling each half by 2t / 2(1 - t) puts the hinge at fraction t and keeps the total length.
+  const earLen = (p: P): number => p.earLength * p.earSize ** 0.3;
+  joint(`earHinge${s}`, `${name} ear fold`, `earBase${s}`, [0.042 * x, 0.55, 0.33], (p) => earLen(p) * 2 * p.earFoldPos);
+  joint(`earTip${s}`, `${name} ear tip`, `earHinge${s}`, [0.05 * x, 0.61, 0.325], (p) => earLen(p) * 2 * (1 - p.earFoldPos),
+    // Fold down and out: swing the tip about a horizontal axis through the hinge (forward + across), so the ear keeps its length.
     (p) => ({ axis: [0.5, 0, -x], angle: p.earFold * (Math.PI / 2) }));
   // Front leg
   joint(`shoulder${s}`, `${name} shoulder`, 'chest', [0.07 * x, 0.3, 0.18], (p) => [p.torsoWidth, 1, 1]);
@@ -158,9 +164,14 @@ for (const { s, x } of sides) {
       radii: (p) => [0.014 * p.eyeSize * p.headSize, 0.016 * p.eyeSize * p.headSize, 0.01 * p.eyeSize * p.headSize],
       offset: (p) => eyeOffset(p, x),
     },
+    // Two halves meeting at the fold hinge; the upper half is a little slimmer so the ear still tapers.
     {
-      kind: 'segment', id: `ear${s}`, from: `earBase${s}`, to: `earTip${s}`, shape: 'cone', color: FUR,
+      kind: 'segment', id: `ear${s}`, from: `earBase${s}`, to: `earHinge${s}`, shape: 'ellipsoid', color: FUR,
       radii: (p) => [0.034 * p.earSize * p.headSize * p.headWidth, 0.018 * p.earSize * p.headSize],
+    },
+    {
+      kind: 'segment', id: `earTop${s}`, from: `earHinge${s}`, to: `earTip${s}`, shape: 'ellipsoid', color: FUR,
+      radii: (p) => [0.7 * 0.034 * p.earSize * p.headSize * p.headWidth, 0.7 * 0.018 * p.earSize * p.headSize],
     },
   );
 }

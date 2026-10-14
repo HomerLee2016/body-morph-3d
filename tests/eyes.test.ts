@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { catModel } from '../src/models/cat';
 import { defaultParams, solveJoints } from '../src/core/rig';
 import { partColor, partTransform } from '../src/core/parts';
+import { clearedTransform, collectSkinParts, createSkinField } from '../src/core/skin';
 import { dot, sub } from '../src/core/vec';
 import type { BlobPart, ShapeParams } from '../src/core/types';
 
@@ -81,5 +82,46 @@ describe('eye colour', () => {
   it('leaves the other parts alone', () => {
     const params = { ...defaults, eyeColor: 0x3366ff };
     expect(partColor(headPart, params)).toBe(partColor(headPart, defaults));
+  });
+});
+
+describe('eyes stay clear of a smooth skin', () => {
+  const skinFor = (params: ShapeParams) => {
+    const joints = solveJoints(catModel, params);
+    const field = createSkinField(collectSkinParts(catModel, joints, params), catModel.skin!.smoothness(params), catModel.skin!.thickness(params));
+    return { joints, field };
+  };
+  const detailParts = catModel.parts.filter((p) => p.skin === false);
+
+  for (const [name, overrides] of [
+    ['defaults', {}],
+    ['smoothest', { skinSmoothness: 4 }],
+    ['thickest', { skinThickness: 4 }],
+    ['smoothest and thickest', { skinSmoothness: 4, skinThickness: 4 }],
+    ['smoothest, big head', { skinSmoothness: 4, headSize: 1.8, eyeSize: 0.5 }],
+  ] as const) {
+    it(`eyes and nose are outside the skin: ${name}`, () => {
+      const params = { ...defaults, ...overrides };
+      const { joints, field } = skinFor(params);
+      for (const part of detailParts) {
+        const t = clearedTransform(part, joints, params, field);
+        expect(field.value(t.position)).toBeGreaterThanOrEqual(0.5 * Math.min(...t.scale) - 1e-6);
+      }
+    });
+  }
+
+  it('without clearing, the smoothest skin buries the eye (the bug this guards against)', () => {
+    const params = { ...defaults, skinSmoothness: 4 };
+    const { joints, field } = skinFor(params);
+    expect(field.value(partTransform(eyePart('L'), joints, params).position)).toBeLessThan(0);
+  });
+
+  it('leaves the eyes alone when there is no skin to clear them from (they keep their rest position)', () => {
+    const params = { ...defaults, skinSmoothness: 0, skinThickness: 0 };
+    const { joints, field } = skinFor(params);
+    const rest = partTransform(eyePart('R'), joints, params).position;
+    const moved = clearedTransform(eyePart('R'), joints, params, field).position;
+    // With no smoothing or thickness the eye sits on the surface, so clearing only nudges it outward a little.
+    expect(Math.hypot(...sub(moved, rest))).toBeLessThan(0.01);
   });
 });

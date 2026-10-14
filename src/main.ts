@@ -16,15 +16,18 @@ const panelRoot = document.getElementById('panel')!;
 const jointLabels = Object.fromEntries(model.joints.map((j) => [j.id, j.label]));
 
 const renderHud = (): void => {
-  const id = viewer.selectedJoint;
+  const ids = viewer.selectedJoints;
   hud.replaceChildren();
   const title = document.createElement('div');
   title.className = 'hud-title';
   const hint = document.createElement('div');
   hint.className = 'hud-hint';
-  if (id) {
-    title.textContent = `Selected: ${jointLabels[id]}`;
-    hint.textContent = 'W A S D move · ↑ ↓ up/down · Shift faster · Esc deselect';
+  if (ids.length === 1) {
+    title.textContent = `Selected: ${jointLabels[ids[0]]}`;
+    hint.textContent = 'W A S D move · ↑ ↓ up/down · Shift faster · Shift+click add/remove · Esc deselect';
+  } else if (ids.length > 1) {
+    title.textContent = `Selected: ${ids.length} joints`;
+    hint.textContent = 'W A S D move all · ↑ ↓ up/down · Shift faster · Shift+click add/remove · Esc deselect';
   } else {
     title.textContent = 'Drag to rotate · scroll to zoom';
     hint.textContent = 'Click a blue joint to pose it';

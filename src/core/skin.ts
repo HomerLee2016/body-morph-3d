@@ -1,7 +1,7 @@
 import type { JointPositions } from './rig';
 import { partColor, partTransform } from './parts';
-import type { ModelDef, PartTransform, ShapeParams } from './types';
-import type { Vec3 } from './vec';
+import type { ModelDef, PartDef, PartTransform, ShapeParams } from './types';
+import { add, mul, type Vec3 } from './vec';
 
 /**
  * Skin: one smooth surface wrapped around the parts ("muscles").
@@ -62,17 +62,44 @@ export function hexToLinear(hex: number): Vec3 {
 
 /**
  * Transforms of the parts that take part in the skin (those not marked `skin: false`), or with
- * `detail` the opposite set: the parts drawn as their own meshes (eyes, nose).
+ * `detail` the opposite set: the parts drawn as their own meshes (eyes, nose). Given the skin `field`,
+ * the detail parts come out cleared of the skin (see {@link clearedTransform}).
  */
-export function collectSkinParts(model: ModelDef, joints: JointPositions, params: ShapeParams, detail = false): SkinPart[] {
+export function collectSkinParts(model: ModelDef, joints: JointPositions, params: ShapeParams, detail = false, field?: SkinField): SkinPart[] {
   return model.parts
     .filter((part) => (part.skin === false) === detail)
     .map((part) => ({
       id: part.id,
       shape: part.kind === 'segment' && part.shape === 'cone' ? ('cone' as const) : ('ellipsoid' as const),
-      transform: partTransform(part, joints, params),
+      transform: detail && field ? clearedTransform(part, joints, params, field) : partTransform(part, joints, params),
       color: hexToLinear(partColor(part, params)),
     }));
+}
+
+/**
+ * Where a part drawn outside the skin (`skin: false`, e.g. an eye) goes: its rest position, pushed out
+ * along the part's own facing (forward, for eyes and the nose) until it clears the skin. Without this, a
+ * smoother or thicker skin grows over the eye and hides it.
+ */
+export function clearedTransform(part: PartDef, joints: JointPositions, params: ShapeParams, field: SkinField): PartTransform {
+  const t = partTransform(part, joints, params);
+  const [sx, sy, sz] = t.scale;
+  return { ...t, position: liftOutOfSkin(field, t.position, t.axes[2], 0.5 * Math.min(sx, sy, sz)) };
+}
+
+/**
+ * Moves `point` along `dir` until the field there is at least `margin` outside the skin. Each step closes the
+ * part of the remaining gap (the field grows more slowly than the distance when `dir` is tilted off the normal), so
+ * it takes a couple of dozen steps at worst.
+ */
+function liftOutOfSkin(field: SkinField, point: Vec3, dir: Vec3, margin: number): Vec3 {
+  let p = point;
+  for (let step = 0; step < 24; step++) {
+    const gap = margin - field.value(p);
+    if (gap <= 0) break;
+    p = add(p, mul(dir, gap));
+  }
+  return p;
 }
 
 // Flat per-part record: centre (3), axes (9), scale (3), box min (3), box max (3).

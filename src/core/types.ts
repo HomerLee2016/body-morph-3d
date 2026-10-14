@@ -18,6 +18,8 @@ export interface SliderDef {
   max: number;
   step: number;
   default: number;
+  /** Shown after the value in the panel. Default "×" (a multiplier); "" for a plain fraction or position. */
+  unit?: string;
 }
 
 /** A colour the user can pick in the panel. Stored in `ShapeParams` as 0xrrggbb. */
