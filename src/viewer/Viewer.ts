@@ -6,6 +6,7 @@ import { scatterFur } from '../core/fur';
 import { clearedTransform, collectSkinParts, createSkinField, meshSkin, type SkinField } from '../core/skin';
 import type { LayerId, ModelDef, Pose, ShapeParams } from '../core/types';
 import type { Vec3 } from '../core/vec';
+import { JointSelection } from '../core/selection';
 import { FurMesh } from './FurMesh';
 import { SkinMesh } from './SkinMesh';
 
@@ -24,7 +25,8 @@ const SETTLE_MS = 160;
 const COLORS = { idle: 0x2d9cdb, hover: 0xffffff, selected: 0xffd400 };
 
 export interface ViewerEvents {
-  onSelect?: (jointId: string | null) => void;
+  /** Called with the selected joint ids whenever the selection changes. */
+  onSelect?: (jointIds: string[]) => void;
   onPoseChange?: () => void;
 }
 
@@ -54,7 +56,8 @@ export class Viewer {
   private readonly layers: Record<LayerId, boolean> = { muscles: false, skin: true, fur: true };
 
   private readonly keys = new Set<string>();
-  private selected: string | null = null;
+  /** Selected joints. Moving keys shift all of them together. */
+  private readonly selection = new JointSelection();
   private hovered: string | null = null;
   private pointerDown: { x: number; y: number } | null = null;
   private dirty = true;
@@ -154,15 +157,22 @@ export class Viewer {
     if (!visible) this.select(null);
   }
 
+  /** Selects just this joint (or clears the selection with `null`). */
   select(jointId: string | null): void {
-    if (this.selected === jointId) return;
-    this.selected = jointId;
+    if (!this.selection.set(jointId)) return;
     this.refreshMarkerColors();
-    this.events.onSelect?.(jointId);
+    this.events.onSelect?.(this.selection.list());
   }
 
-  get selectedJoint(): string | null {
-    return this.selected;
+  /** Adds the joint to the selection, or removes it if it is already selected. */
+  toggleSelect(jointId: string): void {
+    this.selection.toggle(jointId);
+    this.refreshMarkerColors();
+    this.events.onSelect?.(this.selection.list());
+  }
+
+  get selectedJoints(): string[] {
+    return this.selection.list();
   }
 
   /** Current joint positions in world space (after model scaling). */
@@ -292,7 +302,13 @@ export class Viewer {
     if (!start || e.button !== 0) return;
     // A drag orbits the camera; only a (nearly) stationary press selects.
     if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > CLICK_MAX_PIXELS) return;
-    this.select(this.pick(e));
+    const id = this.pick(e);
+    // Shift / Ctrl / Cmd click adds or removes a joint; a plain click selects just that one (or clears on empty space).
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+      if (id) this.toggleSelect(id);
+    } else {
+      this.select(id);
+    }
   };
 
   private onPointerMove = (e: PointerEvent): void => {
@@ -313,7 +329,7 @@ export class Viewer {
       return;
     }
     const key = normaliseKey(e.key);
-    if (!MOVE_KEYS.has(key) || !this.selected) return;
+    if (!MOVE_KEYS.has(key) || this.selection.size === 0) return;
     // Arrow keys would otherwise nudge a focused slider instead of the joint.
     if (target?.tagName === 'INPUT') (target as HTMLInputElement).blur();
     e.preventDefault();
@@ -351,7 +367,7 @@ export class Viewer {
 
   /** W/A/S/D move on the ground plane relative to the camera; Up/Down arrows move vertically. */
   private applyKeyboardMove(dt: number): void {
-    if (!this.selected || this.keys.size === 0) return;
+    if (this.selection.size === 0 || this.keys.size === 0) return;
     const forward = this.camera.getWorldDirection(new THREE.Vector3());
     forward.y = 0;
     if (forward.lengthSq() < 1e-6) forward.set(0, 0, -1); // looking straight down
@@ -370,8 +386,10 @@ export class Viewer {
     const fast = this.keys.has('shift') ? FAST_MULTIPLIER : 1;
     // World-space movement -> model space (the body group is uniformly scaled).
     move.normalize().multiplyScalar((MOVE_SPEED * fast * dt) / modelScale(this.model, this.params));
-    const current = this.pose[this.selected] ?? [0, 0, 0];
-    this.pose[this.selected] = [current[0] + move.x, current[1] + move.y, current[2] + move.z];
+    for (const id of this.selection.list()) {
+      const current = this.pose[id] ?? [0, 0, 0];
+      this.pose[id] = [current[0] + move.x, current[1] + move.y, current[2] + move.z];
+    }
     this.dirty = true;
     this.events.onPoseChange?.();
   }
@@ -450,7 +468,7 @@ export class Viewer {
   private refreshMarkerColors(): void {
     for (const [id, marker] of this.markers) {
       const material = marker.material as THREE.MeshBasicMaterial;
-      const state = id === this.selected ? 'selected' : id === this.hovered ? 'hover' : 'idle';
+      const state = this.selection.has(id) ? 'selected' : id === this.hovered ? 'hover' : 'idle';
       material.color.setHex(COLORS[state]);
       marker.scale.setScalar(state === 'selected' ? 1.5 : state === 'hover' ? 1.25 : 1);
     }

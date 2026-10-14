@@ -18,10 +18,11 @@ Requires Node 20.19+ or 22.12+.
 | Rotate camera | Left-drag |
 | Zoom | Scroll / pinch |
 | Select a joint | Click a blue joint marker |
-| Move selected joint | `W` `A` `S` `D` (relative to the camera) |
+| Add / remove a joint from the selection | `Shift`+click (or `Ctrl`/`⌘`+click) a joint marker |
+| Move selected joints | `W` `A` `S` `D` (relative to the camera); all selected joints move together |
 | Move up / down | `↑` / `↓` |
 | Move faster | Hold `Shift` |
-| Deselect | `Esc` |
+| Deselect all | `Esc` |
 | Reshape a body part | Sliders in the right-hand panel (double-click a label to reset one) |
 | Reset | **Reset pose** / **Reset shape** buttons |
 | Save / load a config | **Export config** / **Import config** (JSON file with shape and pose) |

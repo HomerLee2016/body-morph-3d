@@ -7,7 +7,7 @@
 
 - Body Morph 3D: a browser app to pose and reshape a 3D character live. First model: a cat.
 - Mouse: drag to orbit, scroll to zoom.
-- Click a joint to select it. Move it with W/A/S/D (camera-relative, ground plane) and ↑/↓ (vertical). Shift = faster, Esc = deselect. Children follow.
+- Click a joint to select it; Shift/Ctrl/Cmd+click adds or removes one. Move the selection with W/A/S/D (camera-relative, ground plane) and ↑/↓ (vertical). Shift = faster, Esc = deselect all. Children follow.
 - Right-hand panel: one slider per body-part dimension (head, ears, neck, leg width, tail, ...).
 - Stack: TypeScript (strict) + Vite + three.js + Vitest. Plain DOM panel, no UI framework. Keep dependencies minimal.
 - Everything is bundled via npm. No CDN scripts.
