@@ -126,3 +126,38 @@ describe('partTransform', () => {
     expect(l.position[1]).toBeCloseTo(r.position[1], 6);
   });
 });
+
+describe('ear fold', () => {
+  const tipOffset = (earFold: number, side: 'L' | 'R' = 'L') => {
+    const params = { ...defaults, earFold };
+    const j = solveJoints(catModel, params);
+    return sub(j[`earTip${side}`], j[`earBase${side}`]);
+  };
+
+  it('is upright by default', () => {
+    expect(catModel.sliders.find((s) => s.id === 'earFold')!.default).toBe(0);
+    expect(tipOffset(0)[1]).toBeGreaterThan(0.08);
+  });
+
+  it('keeps the ear length at every angle', () => {
+    for (const f of [0.25, 0.5, 1, 1.5]) expect(len(tipOffset(f))).toBeCloseTo(len(tipOffset(0)), 9);
+  });
+
+  it('is roughly horizontal at 90° and below the base when hanging down, pointing outwards', () => {
+    expect(Math.abs(tipOffset(1)[1])).toBeLessThan(0.1 * len(tipOffset(1))); // the upright ear leans a little, so not exactly 0
+    expect(tipOffset(1.5)[1]).toBeLessThan(0);
+    expect(tipOffset(1)[0]).toBeGreaterThan(0.05); // left ear falls to the left (+X)
+    expect(tipOffset(1, 'R')[0]).toBeLessThan(-0.05);
+  });
+
+  it('mirrors left and right and leaves the base and head alone', () => {
+    const a = tipOffset(1, 'L');
+    const b = tipOffset(1, 'R');
+    expect(a[0]).toBeCloseTo(-b[0], 9);
+    expect(a[1]).toBeCloseTo(b[1], 9);
+    expect(a[2]).toBeCloseTo(b[2], 9);
+    const up = solveJoints(catModel, defaults);
+    const folded = solveJoints(catModel, { ...defaults, earFold: 1 });
+    for (const id of ['head', 'earBaseL', 'earBaseR', 'nose']) expect(folded[id]).toEqual(up[id]);
+  });
+});
