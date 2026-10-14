@@ -7,6 +7,7 @@ import { clearedTransform, collectSkinParts, createSkinField, meshSkin, type Ski
 import type { LayerId, ModelDef, Pose, ShapeParams } from '../core/types';
 import type { Vec3 } from '../core/vec';
 import { JointSelection } from '../core/selection';
+import { keyboardDirection } from '../core/move';
 import { FurMesh } from './FurMesh';
 import { SkinMesh } from './SkinMesh';
 
@@ -365,30 +366,19 @@ export class Viewer {
     this.renderer.render(this.scene, this.camera);
   };
 
-  /** W/A/S/D move on the ground plane relative to the camera; Up/Down arrows move vertically. */
+  /** W/A/S/D move along the world X/Z axes and Up/Down along Y, whatever the camera angle. */
   private applyKeyboardMove(dt: number): void {
     if (this.selection.size === 0 || this.keys.size === 0) return;
-    const forward = this.camera.getWorldDirection(new THREE.Vector3());
-    forward.y = 0;
-    if (forward.lengthSq() < 1e-6) forward.set(0, 0, -1); // looking straight down
-    forward.normalize();
-    const right = new THREE.Vector3(-forward.z, 0, forward.x);
-
-    const move = new THREE.Vector3();
-    if (this.keys.has('w')) move.add(forward);
-    if (this.keys.has('s')) move.sub(forward);
-    if (this.keys.has('d')) move.add(right);
-    if (this.keys.has('a')) move.sub(right);
-    if (this.keys.has('arrowup')) move.y += 1;
-    if (this.keys.has('arrowdown')) move.y -= 1;
-    if (move.lengthSq() === 0) return;
+    const dir = keyboardDirection(this.keys);
+    const len = Math.hypot(dir[0], dir[1], dir[2]);
+    if (len === 0) return;
 
     const fast = this.keys.has('shift') ? FAST_MULTIPLIER : 1;
     // World-space movement -> model space (the body group is uniformly scaled).
-    move.normalize().multiplyScalar((MOVE_SPEED * fast * dt) / modelScale(this.model, this.params));
+    const step = (MOVE_SPEED * fast * dt) / modelScale(this.model, this.params) / len;
     for (const id of this.selection.list()) {
       const current = this.pose[id] ?? [0, 0, 0];
-      this.pose[id] = [current[0] + move.x, current[1] + move.y, current[2] + move.z];
+      this.pose[id] = [current[0] + dir[0] * step, current[1] + dir[1] * step, current[2] + dir[2] * step];
     }
     this.dirty = true;
     this.events.onPoseChange?.();

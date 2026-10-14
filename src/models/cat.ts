@@ -35,6 +35,8 @@ const color = (group: string, id: string, label: string, def: number): void => {
   colors.push({ id, label, group, default: def });
 };
 color('Head', 'eyeColor', 'Eye colour', EYE);
+color('Fur', 'furColor', 'Main colour', FUR);
+color('Fur', 'pawColor', 'Foot colour', FUR_LIGHT);
 slider('Ears', 'earSize', 'Ear width', 0.5, 2.2);
 slider('Ears', 'earLength', 'Ear length', 0.4, 2.6);
 slider('Ears', 'earFold', 'Ear fold (× 90°)', 0, 1.5, 0); // 0 = upright, 1 = flat out sideways, 1.5 = hanging down
@@ -110,19 +112,19 @@ const HEAD = { from: 'head', to: 'nose' };
 
 parts.push(
   {
-    kind: 'blob', id: 'pelvisBlob', at: 'pelvis', color: FUR,
+    kind: 'blob', id: 'pelvisBlob', at: 'pelvis', color: (p) => p.furColor,
     radii: (p) => [0.09 * p.torsoWidth * p.hipSize, 0.1 * p.torsoHeight * p.hipSize, 0.13 * p.hipSize],
   },
   {
-    kind: 'blob', id: 'chestBlob', at: 'chest', color: FUR,
+    kind: 'blob', id: 'chestBlob', at: 'chest', color: (p) => p.furColor,
     radii: (p) => [0.095 * p.torsoWidth * p.chestSize, 0.105 * p.torsoHeight * p.chestSize, 0.13 * p.chestSize],
   },
   {
-    kind: 'segment', id: 'torso', from: 'pelvis', to: 'chest', shape: 'ellipsoid', color: FUR,
+    kind: 'segment', id: 'torso', from: 'pelvis', to: 'chest', shape: 'ellipsoid', color: (p) => p.furColor,
     radii: (p) => [0.09 * p.torsoWidth, 0.1 * p.torsoHeight], extend: () => 0,
   },
   {
-    kind: 'segment', id: 'neck', from: 'neck', to: 'head', shape: 'ellipsoid', color: FUR,
+    kind: 'segment', id: 'neck', from: 'neck', to: 'head', shape: 'ellipsoid', color: (p) => p.furColor,
     radii: (p) => [0.045 * p.neckThickness, 0.045 * p.neckThickness], extend: () => 0.03,
   },
 );
@@ -130,7 +132,7 @@ parts.push(
 // --- Parts: head -----------------------------------------------------------
 parts.push(
   {
-    kind: 'blob', id: 'head', at: 'head', facing: HEAD, color: FUR,
+    kind: 'blob', id: 'head', at: 'head', facing: HEAD, color: (p) => p.furColor,
     radii: (p) => [0.08 * p.headSize * p.headWidth, 0.07 * p.headSize, 0.075 * p.headSize],
   },
   {
@@ -157,20 +159,48 @@ const eyeOffset = (p: P, x: number): [number, number, number] => {
   return [0.08 * u * p.headSize * p.headWidth, 0.07 * v * p.headSize, 0.075 * w * p.headSize];
 };
 
+/** Eye layers stacked on the same centre: dark lid rim behind, iris, vertical slit pupil, small glint in front. */
+const EYE_RIM = 0x1c1612;
+const PUPIL = 0x0b0907;
+const GLINT = 0xf5f5f0;
+const eyeLayer = (p: P, x: number, dz: number): [number, number, number] => {
+  const [l, v, f] = eyeOffset(p, x);
+  return [l, v, f + dz * p.eyeSize * p.headSize];
+};
+
 for (const { s, x } of sides) {
   parts.push(
     {
+      kind: 'blob', id: `eyeRim${s}`, at: 'head', facing: HEAD, color: EYE_RIM, skin: false,
+      radii: (p) => [0.019 * p.eyeSize * p.headSize, 0.017 * p.eyeSize * p.headSize, 0.007 * p.eyeSize * p.headSize],
+      offset: (p) => eyeLayer(p, x, -0.002),
+    },
+    {
       kind: 'blob', id: `eye${s}`, at: 'head', facing: HEAD, color: (p) => p.eyeColor, skin: false,
-      radii: (p) => [0.014 * p.eyeSize * p.headSize, 0.016 * p.eyeSize * p.headSize, 0.01 * p.eyeSize * p.headSize],
-      offset: (p) => eyeOffset(p, x),
+      radii: (p) => [0.016 * p.eyeSize * p.headSize, 0.013 * p.eyeSize * p.headSize, 0.01 * p.eyeSize * p.headSize],
+      offset: (p) => eyeLayer(p, x, 0),
+    },
+    {
+      kind: 'blob', id: `eyePupil${s}`, at: 'head', facing: HEAD, color: PUPIL, skin: false,
+      radii: (p) => [0.0035 * p.eyeSize * p.headSize, 0.0115 * p.eyeSize * p.headSize, 0.0022 * p.eyeSize * p.headSize],
+      offset: (p) => eyeLayer(p, x, 0.0095),
+    },
+    {
+      kind: 'blob', id: `eyeGlint${s}`, at: 'head', facing: HEAD, color: GLINT, skin: false,
+      radii: (p) => [0.0028 * p.eyeSize * p.headSize, 0.0028 * p.eyeSize * p.headSize, 0.0012 * p.eyeSize * p.headSize],
+      offset: (p) => {
+        const [l, v, f] = eyeLayer(p, x, 0.0105);
+        // Glint on the outer, upper part of each eye, as in the reference photo.
+        return [l + Math.sign(x) * 0.0055 * p.eyeSize * p.headSize, v + 0.0055 * p.eyeSize * p.headSize, f];
+      },
     },
     // Two halves meeting at the fold hinge; the upper half is a little slimmer so the ear still tapers.
     {
-      kind: 'segment', id: `ear${s}`, from: `earBase${s}`, to: `earHinge${s}`, shape: 'ellipsoid', color: FUR,
+      kind: 'segment', id: `ear${s}`, from: `earBase${s}`, to: `earHinge${s}`, shape: 'ellipsoid', color: (p) => p.furColor,
       radii: (p) => [0.034 * p.earSize * p.headSize * p.headWidth, 0.018 * p.earSize * p.headSize],
     },
     {
-      kind: 'segment', id: `earTop${s}`, from: `earHinge${s}`, to: `earTip${s}`, shape: 'ellipsoid', color: FUR,
+      kind: 'segment', id: `earTop${s}`, from: `earHinge${s}`, to: `earTip${s}`, shape: 'ellipsoid', color: (p) => p.furColor,
       radii: (p) => [0.7 * 0.034 * p.earSize * p.headSize * p.headWidth, 0.7 * 0.018 * p.earSize * p.headSize],
     },
   );
@@ -181,33 +211,33 @@ for (const { s } of sides) {
   parts.push(
     // Front
     {
-      kind: 'segment', id: `frontUpper${s}`, from: `shoulder${s}`, to: `elbow${s}`, shape: 'ellipsoid', color: FUR,
+      kind: 'segment', id: `frontUpper${s}`, from: `shoulder${s}`, to: `elbow${s}`, shape: 'ellipsoid', color: (p) => p.furColor,
       radii: (p) => [0.04 * p.frontLegWidth, 0.04 * p.frontLegWidth], extend: (p) => 0.03 * p.frontLegWidth,
     },
     {
-      kind: 'segment', id: `frontLower${s}`, from: `elbow${s}`, to: `frontPaw${s}`, shape: 'ellipsoid', color: FUR,
+      kind: 'segment', id: `frontLower${s}`, from: `elbow${s}`, to: `frontPaw${s}`, shape: 'ellipsoid', color: (p) => p.furColor,
       radii: (p) => [0.028 * p.frontLegWidth, 0.028 * p.frontLegWidth], extend: (p) => 0.012 * p.frontLegWidth,
     },
     {
-      kind: 'blob', id: `frontPawBlob${s}`, at: `frontPaw${s}`, color: FUR_LIGHT,
+      kind: 'blob', id: `frontPawBlob${s}`, at: `frontPaw${s}`, color: (p) => p.pawColor,
       radii: (p) => [0.03 * p.frontPawSize, 0.024 * p.frontPawSize, 0.048 * p.frontPawSize],
       offset: (p) => [0, 0, 0.018 * p.frontPawSize],
     },
     // Hind
     {
-      kind: 'segment', id: `thigh${s}`, from: `hip${s}`, to: `knee${s}`, shape: 'ellipsoid', color: FUR,
+      kind: 'segment', id: `thigh${s}`, from: `hip${s}`, to: `knee${s}`, shape: 'ellipsoid', color: (p) => p.furColor,
       radii: (p) => [0.05 * p.hindLegWidth, 0.05 * p.hindLegWidth], extend: (p) => 0.03 * p.hindLegWidth,
     },
     {
-      kind: 'segment', id: `shin${s}`, from: `knee${s}`, to: `hock${s}`, shape: 'ellipsoid', color: FUR,
+      kind: 'segment', id: `shin${s}`, from: `knee${s}`, to: `hock${s}`, shape: 'ellipsoid', color: (p) => p.furColor,
       radii: (p) => [0.03 * p.hindLegWidth, 0.03 * p.hindLegWidth], extend: (p) => 0.015 * p.hindLegWidth,
     },
     {
-      kind: 'segment', id: `metatarsus${s}`, from: `hock${s}`, to: `hindPaw${s}`, shape: 'ellipsoid', color: FUR,
+      kind: 'segment', id: `metatarsus${s}`, from: `hock${s}`, to: `hindPaw${s}`, shape: 'ellipsoid', color: (p) => p.furColor,
       radii: (p) => [0.024 * p.hindLegWidth, 0.024 * p.hindLegWidth], extend: (p) => 0.012 * p.hindLegWidth,
     },
     {
-      kind: 'blob', id: `hindPawBlob${s}`, at: `hindPaw${s}`, color: FUR_LIGHT,
+      kind: 'blob', id: `hindPawBlob${s}`, at: `hindPaw${s}`, color: (p) => p.pawColor,
       radii: (p) => [0.03 * p.hindPawSize, 0.024 * p.hindPawSize, 0.047 * p.hindPawSize],
       offset: (p) => [0, 0, 0.018 * p.hindPawSize],
     },
@@ -216,7 +246,7 @@ for (const { s } of sides) {
 
 // --- Parts: tail -----------------------------------------------------------
 const tail = (id: string, from: string, to: string, r: number): PartDef => ({
-  kind: 'segment', id, from, to, shape: 'ellipsoid', color: FUR,
+  kind: 'segment', id, from, to, shape: 'ellipsoid', color: (p) => p.furColor,
   radii: (p) => [r * p.tailThickness, r * p.tailThickness], extend: (p) => 0.6 * r * p.tailThickness,
 });
 parts.push(
@@ -235,16 +265,33 @@ parts.push(
 const ZERO: Vec3 = [0, 0, 0];
 const pair = (name: string, d: Vec3): Record<string, Vec3> => ({ [`${name}L`]: d, [`${name}R`]: d });
 
+// Left/right limb offsets mirror each other: the left x is kept, the right x is negated.
+const mirrored = (name: string, d: Vec3): Record<string, Vec3> => ({
+  [`${name}L`]: d,
+  [`${name}R`]: [-d[0], d[1], d[2]],
+});
+
+// Sitting: haunches down and folded forward, torso upright, forelegs straight under the shoulders.
 const SIT: Record<string, Vec3> = {
-  pelvis: [0, -0.13, -0.05],
-  chest: [0, -0.06, 0.03],
-  head: [0, 0.04, 0.03],
-  ...pair('knee', [0, -0.04, 0.12]),
-  ...pair('hock', [0, -0.06, 0.26]),
-  ...pair('hindPaw', [0, 0, 0.33]),
-  ...pair('shoulder', ZERO),
-  ...pair('elbow', ZERO),
-  ...pair('frontPaw', ZERO),
+  pelvis: [0, -0.195, 0.24],
+  chest: [0, 0.0325, 0.012],
+  neck: [0, 0.0325, -0.066],
+  head: [0, 0.04, 0.022],
+  ...mirrored('hip', [0.036, -0.195, 0.24]),
+  ...mirrored('knee', [0.046, -0.04, 0.274]),
+  ...mirrored('hock', [0.046, -0.06, 0.414]),
+  ...mirrored('hindPaw', [0.046, 0, 0.484]),
+  ...mirrored('shoulder', [0.012, 0, -0.018]),
+  ...pair('elbow', [0, 0, 0.03]),
+  ...pair('frontPaw', [0, 0, 0.08]),
+  nose: [0, 0.04, 0.03],
+  ...pair('earBase', [0, 0.04, 0.03]),
+  ...pair('earHinge', [0, 0.04, 0.03]),
+  ...pair('earTip', [0, 0.04, 0.03]),
+  tail1: [0, -0.26, 0.288],
+  tail2: [0, -0.159, 0.251],
+  tail3: [0, -0.13, 0.262],
+  tail4: [0, -0.13, 0.281],
 };
 
 const poses: PosePreset[] = [
