@@ -1,5 +1,5 @@
 import type { JointDef, ModelDef, Pose, ShapeParams } from './types';
-import { add, mulv, sub, type Vec3 } from './vec';
+import { add, mulv, normalize, rotateAround, sub, type Vec3 } from './vec';
 
 export type JointPositions = Record<string, Vec3>;
 
@@ -41,7 +41,11 @@ function solve(model: ModelDef, params: ShapeParams, pose: Pose, rootShift: Vec3
     }
     const parent = model.joints.find((p) => p.id === j.parent)!;
     // Offset is measured in the *unscaled* rest pose, then scaled by the slider.
-    const offset = mulv(sub(j.pos, parent.pos), jointScale(j, params));
+    let offset = mulv(sub(j.pos, parent.pos), jointScale(j, params));
+    if (j.rotate) {
+      const { axis, angle } = j.rotate(params);
+      offset = rotateAround(offset, normalize(axis), angle);
+    }
     rest[j.id] = add(rest[j.parent], offset);
     world[j.id] = add(add(world[j.parent], offset), pose[j.id] ?? [0, 0, 0]);
   }

@@ -28,6 +28,7 @@ slider('Head', 'snoutLength', 'Snout length', 0.4, 2.2);
 slider('Head', 'eyeSize', 'Eye size', 0.5, 2.2);
 slider('Ears', 'earSize', 'Ear width', 0.5, 2.2);
 slider('Ears', 'earLength', 'Ear length', 0.4, 2.6);
+slider('Ears', 'earFold', 'Ear fold (× 90°)', 0, 1.5, 0); // 0 = upright, 1 = flat out sideways, 1.5 = hanging down
 slider('Neck', 'neckLength', 'Neck length', 0.4, 3);
 slider('Neck', 'neckThickness', 'Neck thickness', 0.5, 2);
 slider('Body', 'torsoLength', 'Torso length', 0.6, 1.8);
@@ -47,8 +48,8 @@ slider('Tail', 'tailThickness', 'Tail thickness', 0.4, 2.6);
 type P = ShapeParams;
 const joints: JointDef[] = [];
 const parts: PartDef[] = [];
-const joint = (id: string, label: string, parent: string | null, pos: Vec3, scale?: (p: P) => number | Vec3): void => {
-  joints.push({ id, label, parent, pos, scale });
+const joint = (id: string, label: string, parent: string | null, pos: Vec3, scale?: JointDef['scale'], rotate?: JointDef['rotate']): void => {
+  joints.push({ id, label, parent, pos, scale, rotate });
 };
 
 // --- Spine, neck, head -----------------------------------------------------
@@ -68,7 +69,9 @@ for (const { s, name, x } of sides) {
   // Ears
   // The base sits inside the head so the ear grows out of it (its rim stays within the head surface).
   joint(`earBase${s}`, `${name} ear base`, 'head', [0.034 * x, 0.49, 0.335], (p) => [p.headWidth * p.headSize, p.headSize, p.headSize]);
-  joint(`earTip${s}`, `${name} ear tip`, `earBase${s}`, [0.05 * x, 0.61, 0.325], (p) => p.earLength * p.earSize ** 0.3);
+  joint(`earTip${s}`, `${name} ear tip`, `earBase${s}`, [0.05 * x, 0.61, 0.325], (p) => p.earLength * p.earSize ** 0.3,
+    // Fold down and out: swing the tip about a horizontal axis (forward + across), so the ear keeps its length.
+    (p) => ({ axis: [0.5, 0, -x], angle: p.earFold * (Math.PI / 2) }));
   // Front leg
   joint(`shoulder${s}`, `${name} shoulder`, 'chest', [0.07 * x, 0.3, 0.18], (p) => [p.torsoWidth, 1, 1]);
   joint(`elbow${s}`, `${name} elbow`, `shoulder${s}`, [0.07 * x, 0.17, 0.2], (p) => p.frontLegLength);

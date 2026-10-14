@@ -29,6 +29,8 @@ export interface JointDef {
   pos: Vec3;
   /** Scales the rest offset from the parent (e.g. a "neck length" slider). */
   scale?: (p: ShapeParams) => number | Vec3;
+  /** Swings the (scaled) offset from the parent about `axis` by `angle` radians (e.g. folding an ear down). Length is kept. */
+  rotate?: (p: ShapeParams) => { axis: Vec3; angle: number };
 }
 
 /** Ellipsoid (or cone) stretched between two joints. */
