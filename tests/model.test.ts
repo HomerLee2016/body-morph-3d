@@ -246,3 +246,43 @@ describe('partTransform shapes', () => {
     for (const v of [...t.position, ...t.scale, ...t.axes.flat()]) expect(Number.isFinite(v)).toBe(true);
   });
 });
+
+describe('ears', () => {
+  // The base rim of each ear must lie inside the head, so the ear grows out of it instead of hanging off its side.
+  const rimInsideHead = (params: Record<string, number>, side: 'L' | 'R'): number => {
+    const joints = solveJoints(catModel, params);
+    const ear = catModel.parts.find((p) => p.id === `ear${side}`) as SegmentPart;
+    const head = partTransform(catModel.parts.find((p) => p.id === 'head')!, joints, params);
+    const t = partTransform(ear, joints, params);
+    const base = joints[`earBase${side}`];
+    let worst = 0;
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * Math.PI * 2;
+      const rim = [0, 1, 2].map((c) => base[c] + t.axes[0][c] * t.scale[0] * Math.cos(a) + t.axes[2][c] * t.scale[2] * Math.sin(a)) as [number, number, number];
+      const d = sub(rim, head.position);
+      const n = [0, 1, 2].reduce((sum, k) => sum + (dot(d, head.axes[k]) / head.scale[k]) ** 2, 0);
+      worst = Math.max(worst, n);
+    }
+    return worst; // <= 1 means inside the head ellipsoid
+  };
+
+  for (const [name, overrides] of [
+    ['default', {}],
+    ['narrow head', { headWidth: 0.6 }],
+    ['wide head', { headWidth: 1.6 }],
+    ['small head', { headSize: 0.6 }],
+    ['big head', { headSize: 1.8 }],
+    ['short ears', { earLength: 0.4 }],
+    ['long ears', { earLength: 2.6 }],
+  ] as const) {
+    it(`ear bases stay inside the head: ${name}`, () => {
+      for (const side of ['L', 'R'] as const) expect(rimInsideHead({ ...defaults, ...overrides }, side)).toBeLessThanOrEqual(1);
+    });
+  }
+
+  it('the ear tips clear the top of the head so the ears are visible', () => {
+    const joints = solveJoints(catModel, defaults);
+    const head = partTransform(catModel.parts.find((p) => p.id === 'head')!, joints, defaults);
+    for (const side of ['L', 'R'] as const) expect(joints[`earTip${side}`][1]).toBeGreaterThan(head.position[1] + head.scale[1] + 0.03);
+  });
+});

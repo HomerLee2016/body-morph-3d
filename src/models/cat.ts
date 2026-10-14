@@ -66,8 +66,9 @@ const sides = [
 
 for (const { s, name, x } of sides) {
   // Ears
-  joint(`earBase${s}`, `${name} ear base`, 'head', [0.052 * x, 0.52, 0.335], (p) => [p.headWidth * p.headSize, p.headSize, p.headSize]);
-  joint(`earTip${s}`, `${name} ear tip`, `earBase${s}`, [0.066 * x, 0.58, 0.32], (p) => p.earLength * p.earSize ** 0.3);
+  // The base sits inside the head so the ear grows out of it (its rim stays within the head surface).
+  joint(`earBase${s}`, `${name} ear base`, 'head', [0.034 * x, 0.49, 0.335], (p) => [p.headWidth * p.headSize, p.headSize, p.headSize]);
+  joint(`earTip${s}`, `${name} ear tip`, `earBase${s}`, [0.05 * x, 0.61, 0.325], (p) => p.earLength * p.earSize ** 0.3);
   // Front leg
   joint(`shoulder${s}`, `${name} shoulder`, 'chest', [0.07 * x, 0.3, 0.18], (p) => [p.torsoWidth, 1, 1]);
   joint(`elbow${s}`, `${name} elbow`, `shoulder${s}`, [0.07 * x, 0.17, 0.2], (p) => p.frontLegLength);
@@ -136,7 +137,7 @@ for (const { s, x } of sides) {
     },
     {
       kind: 'segment', id: `ear${s}`, from: `earBase${s}`, to: `earTip${s}`, shape: 'cone', color: FUR,
-      radii: (p) => [0.04 * p.earSize * p.headSize, 0.012 * p.earSize * p.headSize],
+      radii: (p) => [0.034 * p.earSize * p.headSize * p.headWidth, 0.018 * p.earSize * p.headSize],
     },
   );
 }
