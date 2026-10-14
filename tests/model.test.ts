@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { catModel } from '../src/models/cat';
 import { defaultParams, solveJoints, validateModel } from '../src/core/rig';
-import { partTransform } from '../src/core/parts';
+import { partColor, partTransform } from '../src/core/parts';
 import type { JointDef, ModelDef, SegmentPart, BlobPart } from '../src/core/types';
 import { dot, len, sub } from '../src/core/vec';
 
@@ -139,8 +139,18 @@ describe('cat anatomy at defaults', () => {
     for (const part of catModel.parts) {
       const refs = part.kind === 'segment' ? [part.from, part.to] : [part.at];
       for (const r of refs) expect(ids.has(r)).toBe(true);
-      expect(part.color).toBeGreaterThanOrEqual(0);
-      expect(part.color).toBeLessThanOrEqual(0xffffff);
+      const c = partColor(part, defaults);
+      expect(c).toBeGreaterThanOrEqual(0);
+      expect(c).toBeLessThanOrEqual(0xffffff);
+    }
+  });
+
+  it('has colour ids that do not clash with slider ids and default inside 0..0xffffff', () => {
+    const sliderIds = new Set(catModel.sliders.map((s) => s.id));
+    for (const c of catModel.colors ?? []) {
+      expect(sliderIds.has(c.id)).toBe(false);
+      expect(c.default).toBeGreaterThanOrEqual(0);
+      expect(c.default).toBeLessThanOrEqual(0xffffff);
     }
   });
 

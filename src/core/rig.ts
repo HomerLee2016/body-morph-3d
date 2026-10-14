@@ -4,7 +4,10 @@ import { add, mulv, normalize, rotateAround, sub, type Vec3 } from './vec';
 export type JointPositions = Record<string, Vec3>;
 
 export function defaultParams(model: ModelDef): ShapeParams {
-  return Object.fromEntries(model.sliders.map((s) => [s.id, s.default]));
+  return Object.fromEntries([
+    ...model.sliders.map((s) => [s.id, s.default]),
+    ...(model.colors ?? []).map((c) => [c.id, c.default]),
+  ]);
 }
 
 /** Throws if the joint list is not a valid single-rooted tree (parents before children). */

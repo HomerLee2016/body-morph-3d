@@ -1,6 +1,6 @@
 import type { Vec3 } from './vec';
 
-/** Slider id -> current value. Every slider is a multiplier (1 = default shape). */
+/** Slider id -> current value. Every slider is a multiplier (1 = default shape). Colour ids hold a 0xrrggbb value. */
 export type ShapeParams = Record<string, number>;
 
 /** Things the viewer can show or hide: the parts ("muscles"), the skin over them, the fur on the skin. */
@@ -17,6 +17,15 @@ export interface SliderDef {
   min: number;
   max: number;
   step: number;
+  default: number;
+}
+
+/** A colour the user can pick in the panel. Stored in `ShapeParams` as 0xrrggbb. */
+export interface ColorDef {
+  id: string;
+  label: string;
+  /** Panel section the colour is listed under. */
+  group: string;
   default: number;
 }
 
@@ -44,7 +53,7 @@ export interface SegmentPart {
   radii: (p: ShapeParams) => [number, number];
   /** Extra half-length past each end (ellipsoids only). Default: 0.6 * max radius. */
   extend?: (p: ShapeParams) => number;
-  color: number;
+  color: PartColor;
   /** `false` = drawn as its own mesh, not merged into the skin or covered in fur (eyes, nose). Default: true. */
   skin?: boolean;
 }
@@ -62,12 +71,15 @@ export interface BlobPart {
   radii: (p: ShapeParams) => Vec3;
   /** Offset in the blob's local frame (lateral, vertical, along-facing). */
   offset?: (p: ShapeParams) => Vec3;
-  color: number;
+  color: PartColor;
   /** `false` = drawn as its own mesh, not merged into the skin or covered in fur (eyes, nose). Default: true. */
   skin?: boolean;
 }
 
 export type PartDef = SegmentPart | BlobPart;
+
+/** 0xrrggbb, or a function of the params when a colour control drives it (e.g. eye colour). */
+export type PartColor = number | ((p: ShapeParams) => number);
 
 /** Smooth surface wrapped around the parts ("muscles"). All lengths in metres. */
 export interface SkinDef {
@@ -107,6 +119,8 @@ export interface ModelDef {
   sliders: SliderDef[];
   /** Pose presets offered in the panel. */
   poses?: PosePreset[];
+  /** Colour pickers. Optional; a model without them has none. */
+  colors?: ColorDef[];
   /** Joints that should rest on the ground; the whole model is lifted so the lowest one sits at `groundClearance`. */
   groundJoints: string[];
   groundClearance: number;
