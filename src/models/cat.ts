@@ -349,6 +349,90 @@ const poses: PosePreset[] = [
       ...pair('frontPaw', ZERO),
     },
   },
+  {
+    id: 'hold', label: 'Holding a fish', displace: {
+      ...SIT,
+      ...pair('elbow', [0, 0.06, 0.1]),
+      elbowL: [0.02, 0.06, 0.1],
+      frontPawL: [0.03, 0.14, 0.2],
+      elbowR: [-0.02, 0.06, 0.1],
+      frontPawR: [-0.03, 0.14, 0.2],
+      head: [0, 0.04, 0.03],
+    },
+  },
+  {
+    id: 'read', label: 'Reading', displace: {
+      ...SIT,
+      head: [0, -0.07, 0.11],
+      ...pair('elbow', [0, -0.03, 0.09]),
+      ...pair('frontPaw', [0, -0.02, 0.2]),
+    },
+  },
+  {
+    id: 'sitTall', label: 'Sitting tall', displace: {
+      ...SIT,
+      pelvis: [0, -0.12, 0.2],
+      ...mirrored('hip', [0.036, -0.12, 0.2]),
+      ...mirrored('knee', [0.046, -0.04, 0.26]),
+      tail1: [0.05, -0.2, 0.26],
+      tail2: [0.12, -0.12, 0.2],
+      tail3: [0.12, -0.1, 0.22],
+      tail4: [0.1, -0.08, 0.24],
+    },
+  },
+  {
+    id: 'bowl', label: 'Holding a bowl', displace: {
+      ...SIT,
+      elbowR: [-0.02, 0.12, 0.1],
+      frontPawR: [-0.04, 0.22, 0.17],
+      elbowL: [0.01, -0.02, 0.1],
+      frontPawL: [0.03, 0.02, 0.2],
+    },
+  },
+  {
+    id: 'gem', label: 'Holding a gem', displace: {
+      ...SIT,
+      elbowL: [0.02, 0.1, 0.12],
+      frontPawL: [0.03, 0.2, 0.2],
+      elbowR: [-0.02, 0.1, 0.12],
+      frontPawR: [-0.03, 0.2, 0.2],
+      head: [0, 0.05, 0.03],
+      tail1: [0.12, -0.22, 0.3],
+      tail2: [0.18, -0.16, 0.24],
+      tail3: [0.16, -0.12, 0.26],
+      tail4: [0.12, -0.1, 0.28],
+    },
+  },
+  {
+    id: 'curl', label: 'Curled up', displace: {
+      pelvis: [0, -0.22, 0.25],
+      chest: [0, -0.12, 0.12],
+      head: [0, -0.14, 0.08],
+      ...mirrored('hip', [0.036, -0.22, 0.25]),
+      ...mirrored('knee', [0.046, -0.12, 0.3]),
+      ...mirrored('hock', [0.046, -0.08, 0.36]),
+      ...mirrored('hindPaw', [0.046, 0, 0.42]),
+      ...pair('elbow', [0, -0.06, 0.12]),
+      ...pair('frontPaw', [0, -0.02, 0.22]),
+      tail1: [0.1, -0.22, 0.24],
+      tail2: [0.2, -0.2, 0.12],
+      tail3: [0.18, -0.12, 0.04],
+      tail4: [0.1, -0.06, 0.02],
+    },
+  },
+  {
+    id: 'loaf', label: 'Meditating', displace: {
+      ...SIT,
+      elbowL: [0.02, 0.03, 0.1],
+      frontPawL: [0.04, 0.06, 0.18],
+      elbowR: [-0.02, 0.03, 0.1],
+      frontPawR: [-0.04, 0.06, 0.18],
+      tail1: [0.1, -0.2, 0.2],
+      tail2: [0.14, -0.12, 0.18],
+      tail3: [0.12, -0.1, 0.2],
+      tail4: [0.1, -0.08, 0.22],
+    },
+  },
 ];
 
 export const catModel: ModelDef = {
