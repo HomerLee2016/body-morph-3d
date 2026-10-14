@@ -78,8 +78,12 @@ for (const { s, name, x } of sides) {
   // Ears
   // The base sits inside the head so the ear grows out of it (its rim stays within the head surface).
   joint(`earBase${s}`, `${name} ear base`, 'head', [0.034 * x, 0.49, 0.335], (p) => [p.headWidth * p.headSize, p.headSize, p.headSize]);
-  joint(`earTip${s}`, `${name} ear tip`, `earBase${s}`, [0.05 * x, 0.61, 0.325], (p) => p.earLength * p.earSize ** 0.3,
-    // Fold down and out: swing the tip about a horizontal axis (forward + across), so the ear keeps its length.
+  // The ear bends at a hinge halfway up, so the tip folds from the middle of the ear, not its root.
+  // Both halves scale with the ear length; the hinge sits at half the ear, so both get the same factor.
+  const earLen = (p: P): number => p.earLength * p.earSize ** 0.3;
+  joint(`earHinge${s}`, `${name} ear fold`, `earBase${s}`, [0.042 * x, 0.55, 0.33], earLen);
+  joint(`earTip${s}`, `${name} ear tip`, `earHinge${s}`, [0.05 * x, 0.61, 0.325], (p) => earLen(p),
+    // Fold down and out: swing the tip about a horizontal axis through the hinge (forward + across), so the ear keeps its length.
     (p) => ({ axis: [0.5, 0, -x], angle: p.earFold * (Math.PI / 2) }));
   // Front leg
   joint(`shoulder${s}`, `${name} shoulder`, 'chest', [0.07 * x, 0.3, 0.18], (p) => [p.torsoWidth, 1, 1]);
@@ -158,9 +162,14 @@ for (const { s, x } of sides) {
       radii: (p) => [0.014 * p.eyeSize * p.headSize, 0.016 * p.eyeSize * p.headSize, 0.01 * p.eyeSize * p.headSize],
       offset: (p) => eyeOffset(p, x),
     },
+    // Two halves meeting at the fold hinge; the upper half is a little slimmer so the ear still tapers.
     {
-      kind: 'segment', id: `ear${s}`, from: `earBase${s}`, to: `earTip${s}`, shape: 'cone', color: FUR,
+      kind: 'segment', id: `ear${s}`, from: `earBase${s}`, to: `earHinge${s}`, shape: 'ellipsoid', color: FUR,
       radii: (p) => [0.034 * p.earSize * p.headSize * p.headWidth, 0.018 * p.earSize * p.headSize],
+    },
+    {
+      kind: 'segment', id: `earTop${s}`, from: `earHinge${s}`, to: `earTip${s}`, shape: 'ellipsoid', color: FUR,
+      radii: (p) => [0.7 * 0.034 * p.earSize * p.headSize * p.headWidth, 0.7 * 0.018 * p.earSize * p.headSize],
     },
   );
 }

@@ -202,13 +202,16 @@ describe('validateModel errors', () => {
 describe('partTransform shapes', () => {
   const joints = solveJoints(catModel, defaults);
 
-  it('cones span exactly from -> to (base on `from`)', () => {
-    const ear = catModel.parts.find((p) => p.id === 'earL') as SegmentPart;
-    const t = partTransform(ear, joints, defaults);
-    expect(t.scale[1]).toBeCloseTo(len(sub(joints.earTipL, joints.earBaseL)), 9);
-    const [, y] = t.axes;
-    const expectedDir = sub(joints.earTipL, joints.earBaseL);
-    expect(dot(y, expectedDir) / len(expectedDir)).toBeCloseTo(1, 9);
+  it('ear halves run along the ear: base -> fold hinge -> tip', () => {
+    for (const [id, from, to] of [
+      ['earL', 'earBaseL', 'earHingeL'],
+      ['earTopL', 'earHingeL', 'earTipL'],
+    ] as const) {
+      const t = partTransform(catModel.parts.find((p) => p.id === id) as SegmentPart, joints, defaults);
+      const dir = sub(joints[to], joints[from]);
+      expect(dot(t.axes[1], dir) / len(dir)).toBeCloseTo(1, 9);
+      expect(t.position[1]).toBeCloseTo((joints[from][1] + joints[to][1]) / 2, 9);
+    }
   });
 
   it('blobs face along their facing axis (head blob points at the nose)', () => {

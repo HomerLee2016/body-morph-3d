@@ -128,15 +128,16 @@ describe('partTransform', () => {
 });
 
 describe('ear fold', () => {
+  // The fold swings the tip about the hinge, so measure the folding part of the ear (hinge -> tip).
   const tipOffset = (earFold: number, side: 'L' | 'R' = 'L') => {
     const params = { ...defaults, earFold };
     const j = solveJoints(catModel, params);
-    return sub(j[`earTip${side}`], j[`earBase${side}`]);
+    return sub(j[`earTip${side}`], j[`earHinge${side}`]);
   };
 
   it('is upright by default', () => {
     expect(catModel.sliders.find((s) => s.id === 'earFold')!.default).toBe(0);
-    expect(tipOffset(0)[1]).toBeGreaterThan(0.08);
+    expect(tipOffset(0)[1]).toBeGreaterThan(0.05);
   });
 
   it('keeps the ear length at every angle', () => {
@@ -158,6 +159,6 @@ describe('ear fold', () => {
     expect(a[2]).toBeCloseTo(b[2], 9);
     const up = solveJoints(catModel, defaults);
     const folded = solveJoints(catModel, { ...defaults, earFold: 1 });
-    for (const id of ['head', 'earBaseL', 'earBaseR', 'nose']) expect(folded[id]).toEqual(up[id]);
+    for (const id of ['head', 'earBaseL', 'earBaseR', 'earHingeL', 'earHingeR', 'nose']) expect(folded[id]).toEqual(up[id]);
   });
 });
