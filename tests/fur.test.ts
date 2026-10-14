@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { catModel } from '../src/models/cat';
 import { defaultParams, solveJoints } from '../src/core/rig';
-import { MAX_HAIRS, hash01, rootShade, scatterFur, type FurSettings } from '../src/core/fur';
+import { MAX_HAIRS, droopAt, hash01, rootShade, scatterFur, type FurSettings } from '../src/core/fur';
 import { collectSkinParts, createSkinField, hexToLinear, type SkinPart } from '../src/core/skin';
 import type { PartTransform } from '../src/core/types';
 import { len, type Vec3 } from '../src/core/vec';
@@ -22,6 +22,15 @@ describe('hash01', () => {
       expect(v).toBeGreaterThanOrEqual(0);
       expect(v).toBeLessThan(1);
     }
+  });
+});
+
+describe('droopAt', () => {
+  it('keeps the root still and bends the tip furthest, growing with the square of the height', () => {
+    expect(droopAt(0, 0.5)).toBe(0);
+    expect(droopAt(1, 0.5)).toBe(0.5);
+    expect(droopAt(0.5, 0.5)).toBeCloseTo(0.125);
+    expect(droopAt(0.25, 1)).toBeLessThan(droopAt(0.75, 1));
   });
 });
 
