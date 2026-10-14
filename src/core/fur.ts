@@ -56,6 +56,13 @@ const TINT_SPREAD = 0.07;
 /** Brightness of a strand's root relative to its tip, for a given softness. */
 export const rootShade = (softness: number): number => 1 - ROOT_DARKENING * softness;
 
+/**
+ * How far a strand's tip hangs under gravity, as a fraction of its length. `fraction` is the
+ * position along the strand (0 = root, 1 = tip). The bend grows with its square, so the root
+ * stays on the skin and the tip falls furthest. The viewer's shader uses the same profile.
+ */
+export const droopAt = (fraction: number, droop: number): number => droop * fraction * fraction;
+
 /** Deterministic hash of three integers to [0, 1). */
 export function hash01(a: number, b: number, c: number): number {
   let h = Math.imul(a + 1, 374761393) ^ Math.imul(b + 1, 668265263) ^ Math.imul(c + 1, 2147483629);
