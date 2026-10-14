@@ -31,6 +31,17 @@ Moving a joint moves everything attached to it (children follow); the limbs stre
 
 `npm run dev` · `npm run build` · `npm run typecheck` · `npm test`
 
+## Deploy
+
+Static site: `npm run build` writes `dist/`. `.github/workflows/deploy.yaml` publishes it to GitHub Pages on every push to `main` (merges included), after running the tests.
+
+One-time setup: repo **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+
+## CI
+
+- `unit_test.yaml`: `npm test` on every pull request and every push to `main`.
+- `ci.yml`: typecheck + production build on every pull request and every push to `main`.
+
 ## The cat model
 
 The v1 cat is a **procedural rigged cat** (joints + ellipsoid/cone parts + shape sliders) defined in [`src/models/cat.ts`](src/models/cat.ts). It is not based on a downloaded asset yet – see issue #1 for why and the follow-up plan to import a CC0/CC-BY rigged `.glb`.
