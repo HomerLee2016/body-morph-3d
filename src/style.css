@@ -73,6 +73,7 @@ body {
   cursor: pointer;
 }
 .panel-actions button:hover { border-color: var(--accent); }
+.config-actions { margin-top: 8px; }
 .poses { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .poses button {
   padding: 5px 9px;

@@ -2,8 +2,9 @@ import './style.css';
 import { catModel } from './models/cat';
 import { validateModel } from './core/rig';
 import { findPose, poseFromDisplacements } from './core/pose';
+import { exportConfig, importConfig } from './core/config';
 import { Viewer } from './viewer/Viewer';
-import { buildPanel } from './ui/panel';
+import { buildPanel, downloadText } from './ui/panel';
 
 const model = catModel;
 validateModel(model);
@@ -46,6 +47,19 @@ const panel = buildPanel(panelRoot, model, viewer.params, {
   },
   onToggleJoints: (visible) => viewer.setJointsVisible(visible),
   onToggleLayer: (layer, visible) => viewer.setLayerVisible(layer, visible),
+  onExportConfig: () => {
+    downloadText(`body-morph-3d-${model.id}.json`, exportConfig(model, viewer.params, viewer.pose), 'application/json');
+  },
+  onImportConfig: (text) => {
+    try {
+      const config = importConfig(model, text);
+      viewer.setShape(config.shape);
+      viewer.setPose(config.pose);
+      panel.sync(viewer.params);
+    } catch (err) {
+      window.alert(`Could not import config: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  },
 });
 
 renderHud();

@@ -124,6 +124,13 @@ export class Viewer {
     this.dirty = true;
   }
 
+  /** Replaces the whole shape (pose is untouched). */
+  setShape(shape: ShapeParams): void {
+    for (const key of Object.keys(this.params)) delete this.params[key];
+    Object.assign(this.params, shape);
+    this.dirty = true;
+  }
+
   /** Replaces the whole pose (shape is untouched). */
   setPose(pose: Pose): void {
     for (const key of Object.keys(this.pose)) delete this.pose[key];
