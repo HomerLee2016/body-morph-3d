@@ -40,6 +40,7 @@ const panel = buildPanel(panelRoot, model, viewer.params, {
   },
   onResetPose: () => viewer.resetPose(),
   onToggleJoints: (visible) => viewer.setJointsVisible(visible),
+  onToggleLayer: (layer, visible) => viewer.setLayerVisible(layer, visible),
 });
 
 renderHud();

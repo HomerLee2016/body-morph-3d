@@ -2,13 +2,20 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { defaultParams, modelScale, solveJoints } from '../core/rig';
 import { partTransform } from '../core/parts';
-import type { ModelDef, Pose, ShapeParams } from '../core/types';
+import { collectSkinParts, createSkinField, meshSkin } from '../core/skin';
+import type { LayerId, ModelDef, Pose, ShapeParams } from '../core/types';
 import type { Vec3 } from '../core/vec';
+import { SkinMesh } from './SkinMesh';
 
 const MARKER_RADIUS = 0.016;
 const MOVE_SPEED = 0.25; // metres per second
 const FAST_MULTIPLIER = 3;
 const CLICK_MAX_PIXELS = 5;
+
+// Skin grid spacing (metres): coarse while the shape or pose is changing, fine once it settles.
+const SKIN_VOXEL_LIVE = 0.016;
+const SKIN_VOXEL_FINE = 0.007;
+const SETTLE_MS = 160;
 
 const COLORS = { idle: 0x2d9cdb, hover: 0xffffff, selected: 0xffd400 };
 
@@ -38,12 +45,15 @@ export class Viewer {
   private readonly markerGroup = new THREE.Group();
   private readonly markers = new Map<string, THREE.Mesh>();
   private readonly bones: THREE.LineSegments;
+  private readonly skinMesh = new SkinMesh();
+  private readonly layers: Record<LayerId, boolean> = { muscles: false, skin: true, fur: true };
 
   private readonly keys = new Set<string>();
   private selected: string | null = null;
   private hovered: string | null = null;
   private pointerDown: { x: number; y: number } | null = null;
   private dirty = true;
+  private settleAt: number | null = null;
   private frame = 0;
 
   constructor(private readonly container: HTMLElement, private readonly model: ModelDef, private readonly events: ViewerEvents = {}) {
@@ -70,6 +80,8 @@ export class Viewer {
       this.bodyGroup.add(mesh);
     }
     this.scene.add(this.bodyGroup);
+    this.bodyGroup.add(this.skinMesh.object);
+    this.applyLayers();
 
     // Joint markers + skeleton lines, drawn on top of the body.
     const markerGeometry = new THREE.SphereGeometry(MARKER_RADIUS, 16, 12);
@@ -111,6 +123,12 @@ export class Viewer {
     this.events.onPoseChange?.();
   }
 
+  setLayerVisible(layer: LayerId, visible: boolean): void {
+    this.layers[layer] = visible;
+    this.applyLayers();
+    this.dirty = true;
+  }
+
   setJointsVisible(visible: boolean): void {
     this.markerGroup.visible = visible;
     if (!visible) this.select(null);
@@ -146,6 +164,7 @@ export class Viewer {
     cancelAnimationFrame(this.frame);
     this.unbind();
     this.controls.dispose();
+    this.skinMesh.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
@@ -298,6 +317,10 @@ export class Viewer {
     if (this.dirty) {
       this.rebuild();
       this.dirty = false;
+      this.settleAt = performance.now() + SETTLE_MS;
+    } else if (this.settleAt !== null && performance.now() >= this.settleAt) {
+      this.rebuildSkin(true); // nothing changed for a moment: spend time on the detailed skin
+      this.settleAt = null;
     }
     this.renderer.render(this.scene, this.camera);
   };
@@ -329,10 +352,21 @@ export class Viewer {
     this.events.onPoseChange?.();
   }
 
+  /** Muscles shown if asked for; parts kept out of the skin (eyes, nose) are always shown while there is a skin. */
+  private applyLayers(): void {
+    const { skin } = this.model;
+    for (const part of this.model.parts) {
+      this.partMeshes.get(part.id)!.visible = !skin || this.layers.muscles || part.skin === false;
+    }
+    this.skinMesh.object.visible = !!skin && this.layers.skin;
+    this.skinMesh.setGhost(this.layers.muscles);
+  }
+
   private rebuild(): void {
     const scale = modelScale(this.model, this.params);
     const joints = solveJoints(this.model, this.params, this.pose);
     this.bodyGroup.scale.setScalar(scale);
+    this.rebuildSkin(false, joints);
 
     const m = new THREE.Matrix4();
     for (const part of this.model.parts) {
@@ -353,6 +387,14 @@ export class Viewer {
       }
     }
     this.bones.geometry.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3));
+  }
+
+  private rebuildSkin(fine: boolean, joints = solveJoints(this.model, this.params, this.pose)): void {
+    const skin = this.model.skin;
+    if (!skin || !this.layers.skin) return;
+    const parts = collectSkinParts(this.model, joints, this.params);
+    const field = createSkinField(parts, skin.smoothness(this.params), skin.thickness(this.params));
+    this.skinMesh.update(meshSkin(field, fine ? SKIN_VOXEL_FINE : SKIN_VOXEL_LIVE));
   }
 
   private refreshMarkerColors(): void {

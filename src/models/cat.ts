@@ -16,6 +16,8 @@ const slider = (group: string, id: string, label: string, min: number, max: numb
 };
 
 slider('Whole body', 'size', 'Overall size', 0.5, 1.8);
+slider('Skin', 'skinSmoothness', 'Smoothness', 0, 4);
+slider('Skin', 'skinThickness', 'Thickness', 0, 4);
 slider('Head', 'headSize', 'Head size', 0.6, 1.8);
 slider('Head', 'headWidth', 'Head width', 0.6, 1.6);
 slider('Head', 'snoutLength', 'Snout length', 0.4, 2.2);
@@ -113,17 +115,20 @@ parts.push(
     radii: (p) => [0.032 * p.headSize, 0.026 * p.headSize, 0.035 * p.headSize * p.snoutLength],
   },
   {
-    kind: 'blob', id: 'noseTip', at: 'nose', facing: HEAD, color: PINK,
+    kind: 'blob', id: 'noseTip', at: 'nose', facing: HEAD, color: PINK, skin: false,
     radii: (p) => [0.012 * p.headSize, 0.009 * p.headSize, 0.009 * p.headSize],
+    // Sits a little proud of the snout so the skin does not bury it.
+    offset: (p) => [0, 0, 0.016 * p.headSize * p.snoutLength],
   },
 );
 
 for (const { s, x } of sides) {
   parts.push(
     {
-      kind: 'blob', id: `eye${s}`, at: 'head', facing: HEAD, color: EYE,
+      kind: 'blob', id: `eye${s}`, at: 'head', facing: HEAD, color: EYE, skin: false,
       radii: (p) => [0.014 * p.eyeSize * p.headSize, 0.016 * p.eyeSize * p.headSize, 0.01 * p.eyeSize * p.headSize],
-      offset: (p) => [0.038 * x * p.headSize * p.headWidth, 0.02 * p.headSize, 0.05 * p.headSize],
+      // Sit on the head surface (not inside it) so the skin does not bury them.
+      offset: (p) => [0.044 * x * p.headSize * p.headWidth, 0.023 * p.headSize, 0.058 * p.headSize],
     },
     {
       kind: 'segment', id: `ear${s}`, from: `earBase${s}`, to: `earTip${s}`, shape: 'cone', color: FUR,
@@ -194,4 +199,8 @@ export const catModel: ModelDef = {
   groundJoints: ['frontPawL', 'frontPawR', 'hindPawL', 'hindPawR'],
   groundClearance: 0.024,
   sizeParam: 'size',
+  skin: {
+    smoothness: (p) => 0.012 * p.skinSmoothness,
+    thickness: (p) => 0.003 * p.skinThickness,
+  },
 };

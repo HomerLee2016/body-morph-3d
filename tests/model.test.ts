@@ -30,13 +30,15 @@ describe('every slider', () => {
 
     // The size slider is applied by the viewer via modelScale() (covered in rig.test.ts), not by the solver.
     const solverDriven = slider.id !== catModel.sizeParam;
-    it.runIf(solverDriven)(`${slider.id}: changes the model (is wired to a joint or part)`, () => {
+    it.runIf(solverDriven)(`${slider.id}: changes the model (is wired to a joint, part, skin or fur)`, () => {
       const lo = { ...defaults, [slider.id]: slider.min };
       const hi = { ...defaults, [slider.id]: slider.max };
       const jointsLo = solveJoints(catModel, lo);
       const jointsHi = solveJoints(catModel, hi);
+      // Skin sliders don't move joints or parts; they change what the skin is made of.
+      const look = (p: typeof lo) => [catModel.skin?.smoothness(p), catModel.skin?.thickness(p)];
       const signature = (p: typeof lo, j: typeof jointsLo) =>
-        JSON.stringify([catModel.parts.map((part) => partTransform(part, j, p)), j]);
+        JSON.stringify([catModel.parts.map((part) => partTransform(part, j, p)), j, look(p)]);
       expect(signature(lo, jointsLo)).not.toBe(signature(hi, jointsHi));
     });
   }

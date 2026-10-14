@@ -1,10 +1,11 @@
-import type { ModelDef, ShapeParams, SliderDef } from '../core/types';
+import type { LayerId, ModelDef, ShapeParams, SliderDef } from '../core/types';
 
 export interface PanelHandlers {
   onParam: (id: string, value: number) => void;
   onResetShape: () => void;
   onResetPose: () => void;
   onToggleJoints: (visible: boolean) => void;
+  onToggleLayer: (layer: LayerId, visible: boolean) => void;
 }
 
 export interface Panel {
@@ -32,13 +33,23 @@ export function buildPanel(root: HTMLElement, model: ModelDef, params: ShapePara
   resetPose.addEventListener('click', handlers.onResetPose);
   actions.append(resetShape, resetPose);
 
-  const toggle = el('label', 'toggle');
-  const checkbox = el('input');
-  checkbox.type = 'checkbox';
-  checkbox.checked = true;
-  checkbox.addEventListener('change', () => handlers.onToggleJoints(checkbox.checked));
-  toggle.append(checkbox, el('span', undefined, 'Show joints'));
-  header.append(actions, toggle);
+  const toggles = el('div', 'toggles');
+  const addToggle = (label: string, checked: boolean, onChange: (checked: boolean) => void): void => {
+    const toggle = el('label', 'toggle');
+    const checkbox = el('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = checked;
+    checkbox.addEventListener('change', () => onChange(checkbox.checked));
+    toggle.append(checkbox, el('span', undefined, label));
+    toggles.append(toggle);
+  };
+  addToggle('Joints', true, handlers.onToggleJoints);
+  if (model.skin) {
+    addToggle('Muscles', false, (on) => handlers.onToggleLayer('muscles', on));
+    addToggle('Skin', true, (on) => handlers.onToggleLayer('skin', on));
+  }
+  if (model.fur) addToggle('Fur', true, (on) => handlers.onToggleLayer('fur', on));
+  header.append(actions, toggles);
   root.append(header);
 
   const rows = new Map<string, { input: HTMLInputElement; value: HTMLOutputElement; def: SliderDef }>();
