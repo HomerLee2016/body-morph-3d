@@ -35,6 +35,8 @@ const color = (group: string, id: string, label: string, def: number): void => {
   colors.push({ id, label, group, default: def });
 };
 color('Head', 'eyeColor', 'Eye colour', EYE);
+color('Fur', 'furColor', 'Main colour', FUR);
+color('Fur', 'pawColor', 'Foot colour', FUR_LIGHT);
 slider('Ears', 'earSize', 'Ear width', 0.5, 2.2);
 slider('Ears', 'earLength', 'Ear length', 0.4, 2.6);
 slider('Ears', 'earFold', 'Ear fold (× 90°)', 0, 1.5, 0); // 0 = upright, 1 = flat out sideways, 1.5 = hanging down
@@ -110,19 +112,19 @@ const HEAD = { from: 'head', to: 'nose' };
 
 parts.push(
   {
-    kind: 'blob', id: 'pelvisBlob', at: 'pelvis', color: FUR,
+    kind: 'blob', id: 'pelvisBlob', at: 'pelvis', color: (p) => p.furColor,
     radii: (p) => [0.09 * p.torsoWidth * p.hipSize, 0.1 * p.torsoHeight * p.hipSize, 0.13 * p.hipSize],
   },
   {
-    kind: 'blob', id: 'chestBlob', at: 'chest', color: FUR,
+    kind: 'blob', id: 'chestBlob', at: 'chest', color: (p) => p.furColor,
     radii: (p) => [0.095 * p.torsoWidth * p.chestSize, 0.105 * p.torsoHeight * p.chestSize, 0.13 * p.chestSize],
   },
   {
-    kind: 'segment', id: 'torso', from: 'pelvis', to: 'chest', shape: 'ellipsoid', color: FUR,
+    kind: 'segment', id: 'torso', from: 'pelvis', to: 'chest', shape: 'ellipsoid', color: (p) => p.furColor,
     radii: (p) => [0.09 * p.torsoWidth, 0.1 * p.torsoHeight], extend: () => 0,
   },
   {
-    kind: 'segment', id: 'neck', from: 'neck', to: 'head', shape: 'ellipsoid', color: FUR,
+    kind: 'segment', id: 'neck', from: 'neck', to: 'head', shape: 'ellipsoid', color: (p) => p.furColor,
     radii: (p) => [0.045 * p.neckThickness, 0.045 * p.neckThickness], extend: () => 0.03,
   },
 );
@@ -130,7 +132,7 @@ parts.push(
 // --- Parts: head -----------------------------------------------------------
 parts.push(
   {
-    kind: 'blob', id: 'head', at: 'head', facing: HEAD, color: FUR,
+    kind: 'blob', id: 'head', at: 'head', facing: HEAD, color: (p) => p.furColor,
     radii: (p) => [0.08 * p.headSize * p.headWidth, 0.07 * p.headSize, 0.075 * p.headSize],
   },
   {
@@ -194,11 +196,11 @@ for (const { s, x } of sides) {
     },
     // Two halves meeting at the fold hinge; the upper half is a little slimmer so the ear still tapers.
     {
-      kind: 'segment', id: `ear${s}`, from: `earBase${s}`, to: `earHinge${s}`, shape: 'ellipsoid', color: FUR,
+      kind: 'segment', id: `ear${s}`, from: `earBase${s}`, to: `earHinge${s}`, shape: 'ellipsoid', color: (p) => p.furColor,
       radii: (p) => [0.034 * p.earSize * p.headSize * p.headWidth, 0.018 * p.earSize * p.headSize],
     },
     {
-      kind: 'segment', id: `earTop${s}`, from: `earHinge${s}`, to: `earTip${s}`, shape: 'ellipsoid', color: FUR,
+      kind: 'segment', id: `earTop${s}`, from: `earHinge${s}`, to: `earTip${s}`, shape: 'ellipsoid', color: (p) => p.furColor,
       radii: (p) => [0.7 * 0.034 * p.earSize * p.headSize * p.headWidth, 0.7 * 0.018 * p.earSize * p.headSize],
     },
   );
@@ -209,33 +211,33 @@ for (const { s } of sides) {
   parts.push(
     // Front
     {
-      kind: 'segment', id: `frontUpper${s}`, from: `shoulder${s}`, to: `elbow${s}`, shape: 'ellipsoid', color: FUR,
+      kind: 'segment', id: `frontUpper${s}`, from: `shoulder${s}`, to: `elbow${s}`, shape: 'ellipsoid', color: (p) => p.furColor,
       radii: (p) => [0.04 * p.frontLegWidth, 0.04 * p.frontLegWidth], extend: (p) => 0.03 * p.frontLegWidth,
     },
     {
-      kind: 'segment', id: `frontLower${s}`, from: `elbow${s}`, to: `frontPaw${s}`, shape: 'ellipsoid', color: FUR,
+      kind: 'segment', id: `frontLower${s}`, from: `elbow${s}`, to: `frontPaw${s}`, shape: 'ellipsoid', color: (p) => p.furColor,
       radii: (p) => [0.028 * p.frontLegWidth, 0.028 * p.frontLegWidth], extend: (p) => 0.012 * p.frontLegWidth,
     },
     {
-      kind: 'blob', id: `frontPawBlob${s}`, at: `frontPaw${s}`, color: FUR_LIGHT,
+      kind: 'blob', id: `frontPawBlob${s}`, at: `frontPaw${s}`, color: (p) => p.pawColor,
       radii: (p) => [0.03 * p.frontPawSize, 0.024 * p.frontPawSize, 0.048 * p.frontPawSize],
       offset: (p) => [0, 0, 0.018 * p.frontPawSize],
     },
     // Hind
     {
-      kind: 'segment', id: `thigh${s}`, from: `hip${s}`, to: `knee${s}`, shape: 'ellipsoid', color: FUR,
+      kind: 'segment', id: `thigh${s}`, from: `hip${s}`, to: `knee${s}`, shape: 'ellipsoid', color: (p) => p.furColor,
       radii: (p) => [0.05 * p.hindLegWidth, 0.05 * p.hindLegWidth], extend: (p) => 0.03 * p.hindLegWidth,
     },
     {
-      kind: 'segment', id: `shin${s}`, from: `knee${s}`, to: `hock${s}`, shape: 'ellipsoid', color: FUR,
+      kind: 'segment', id: `shin${s}`, from: `knee${s}`, to: `hock${s}`, shape: 'ellipsoid', color: (p) => p.furColor,
       radii: (p) => [0.03 * p.hindLegWidth, 0.03 * p.hindLegWidth], extend: (p) => 0.015 * p.hindLegWidth,
     },
     {
-      kind: 'segment', id: `metatarsus${s}`, from: `hock${s}`, to: `hindPaw${s}`, shape: 'ellipsoid', color: FUR,
+      kind: 'segment', id: `metatarsus${s}`, from: `hock${s}`, to: `hindPaw${s}`, shape: 'ellipsoid', color: (p) => p.furColor,
       radii: (p) => [0.024 * p.hindLegWidth, 0.024 * p.hindLegWidth], extend: (p) => 0.012 * p.hindLegWidth,
     },
     {
-      kind: 'blob', id: `hindPawBlob${s}`, at: `hindPaw${s}`, color: FUR_LIGHT,
+      kind: 'blob', id: `hindPawBlob${s}`, at: `hindPaw${s}`, color: (p) => p.pawColor,
       radii: (p) => [0.03 * p.hindPawSize, 0.024 * p.hindPawSize, 0.047 * p.hindPawSize],
       offset: (p) => [0, 0, 0.018 * p.hindPawSize],
     },
@@ -244,7 +246,7 @@ for (const { s } of sides) {
 
 // --- Parts: tail -----------------------------------------------------------
 const tail = (id: string, from: string, to: string, r: number): PartDef => ({
-  kind: 'segment', id, from, to, shape: 'ellipsoid', color: FUR,
+  kind: 'segment', id, from, to, shape: 'ellipsoid', color: (p) => p.furColor,
   radii: (p) => [r * p.tailThickness, r * p.tailThickness], extend: (p) => 0.6 * r * p.tailThickness,
 });
 parts.push(
