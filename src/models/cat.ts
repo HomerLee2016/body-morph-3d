@@ -275,7 +275,7 @@ const mirrored = (name: string, d: Vec3): Record<string, Vec3> => ({
 const SIT: Record<string, Vec3> = {
   pelvis: [0, -0.195, 0.24],
   chest: [0, 0.0325, 0.012],
-  neck: [0, 0.0325, -0.066],
+  neck: [0, 0.0325, 0.012],
   head: [0, 0.04, 0.022],
   ...mirrored('hip', [0.036, -0.195, 0.24]),
   ...mirrored('knee', [0.046, -0.04, 0.274]),
@@ -332,15 +332,14 @@ const poses: PosePreset[] = [
   },
   {
     id: 'eat', label: 'Eating', displace: {
-      neck: [0, -0.12, 0.1],
-      head: [0, -0.3, 0.22],
+      head: [0, -0.22, 0.2],
     },
   },
   {
     id: 'guard', label: 'Guarding', displace: {
       pelvis: [0, -0.06, -0.02],
       chest: [0, -0.1, 0.04],
-      neck: [0, -0.12, 0.1],
+      neck: [0, -0.1, 0.04],
       head: [0, -0.06, 0.2],
       tail1: [0, -0.12, -0.04],
       ...pair('knee', [0, -0.05, 0]),

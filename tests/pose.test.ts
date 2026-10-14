@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { catModel } from '../src/models/cat';
 import { poseFromDisplacements } from '../src/core/pose';
 import { defaultParams, solveJoints } from '../src/core/rig';
+import { sub } from '../src/core/vec';
 
 const defaults = defaultParams(catModel);
 const jointIds = new Set(catModel.joints.map((j) => j.id));
@@ -41,6 +42,15 @@ describe('cat pose presets', () => {
 
   it('only references known joints', () => {
     for (const p of poses) for (const id of Object.keys(p.displace)) expect(jointIds.has(id)).toBe(true);
+  });
+
+  it('keeps the neck attached to the chest in every preset', () => {
+    const rest = solveJoints(catModel, defaults);
+    const restGap = Math.hypot(...sub(rest.neck, rest.chest));
+    for (const p of poses) {
+      const joints = solveJoints(catModel, defaults, poseFromDisplacements(catModel, p.displace));
+      expect(Math.abs(Math.hypot(...sub(joints.neck, joints.chest)) - restGap), `${p.id}: neck base detached`).toBeLessThan(0.005);
+    }
   });
 
   it('keeps every joint finite and above the floor', () => {
