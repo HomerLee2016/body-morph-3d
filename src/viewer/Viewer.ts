@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { defaultParams, modelScale, solveJoints } from '../core/rig';
+import { defaultParams, modelScale, solveJoints, type JointPositions } from '../core/rig';
 import { partColor, partTransform } from '../core/parts';
 import { scatterFur } from '../core/fur';
-import { collectSkinParts, createSkinField, meshSkin } from '../core/skin';
+import { clearedTransform, collectSkinParts, createSkinField, meshSkin, type SkinField } from '../core/skin';
 import type { LayerId, ModelDef, Pose, ShapeParams } from '../core/types';
 import type { Vec3 } from '../core/vec';
 import { FurMesh } from './FurMesh';
@@ -394,8 +394,10 @@ export class Viewer {
     this.rebuildSurfaces('live', joints);
 
     const m = new THREE.Matrix4();
+    const field = this.skinField(joints);
     for (const part of this.model.parts) {
-      const t = partTransform(part, joints, this.params);
+      // Parts drawn outside the skin (eyes, nose) are cleared of it, so a smoother skin cannot hide them.
+      const t = field && part.skin === false ? clearedTransform(part, joints, this.params, field) : partTransform(part, joints, this.params);
       const [x, y, z] = t.axes;
       m.makeBasis(new THREE.Vector3(...x).multiplyScalar(t.scale[0]), new THREE.Vector3(...y).multiplyScalar(t.scale[1]), new THREE.Vector3(...z).multiplyScalar(t.scale[2]));
       m.setPosition(...t.position);
@@ -424,11 +426,10 @@ export class Viewer {
     const showFur = !!fur && this.layers.fur;
     if (!showSkin && !showFur) return;
 
-    const parts = collectSkinParts(this.model, joints, this.params);
-    const field = createSkinField(parts, skin.smoothness(this.params), skin.thickness(this.params));
+    const field = this.skinField(joints)!;
     if (showSkin && detail !== 'fine-fur') this.skinMesh.update(meshSkin(field, detail === 'live' ? SKIN_VOXEL_LIVE : SKIN_VOXEL_FINE));
     if (showFur && detail !== 'fine-skin') {
-      const bare = createSkinField(collectSkinParts(this.model, joints, this.params, true), 0, 0);
+      const bare = createSkinField(collectSkinParts(this.model, joints, this.params, true, field), 0, 0);
       const settings = {
         density: fur.density(this.params),
         length: fur.length(this.params),
@@ -437,6 +438,13 @@ export class Viewer {
       };
       this.furMesh.update(scatterFur(field, settings, detail === 'live' ? FUR_SHARE_LIVE : 1, bare), fur.thickness(this.params), settings.softness);
     }
+  }
+
+  /** The skin's distance field for these joints, or `undefined` for a model without skin. */
+  private skinField(joints: JointPositions): SkinField | undefined {
+    const { skin } = this.model;
+    if (!skin) return undefined;
+    return createSkinField(collectSkinParts(this.model, joints, this.params), skin.smoothness(this.params), skin.thickness(this.params));
   }
 
   private refreshMarkerColors(): void {
