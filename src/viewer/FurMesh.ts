@@ -4,7 +4,7 @@ import { MAX_HAIRS, type Fur } from '../core/fur';
 /** Unit strand: a tapered three-sided spike, radius 1 and height 1, darker at the root. */
 function strandGeometry(): THREE.BufferGeometry {
   const rings: { y: number; radius: number; shade: number }[] = [
-    { y: 0, radius: 1, shade: 0.68 },
+    { y: 0, radius: 1, shade: 0.82 },
     { y: 0.45, radius: 0.65, shade: 0.9 },
   ];
   const positions: number[] = [];

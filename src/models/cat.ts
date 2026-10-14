@@ -214,7 +214,7 @@ export const catModel: ModelDef = {
   fur: {
     density: (p) => 8 * p.furDensity,
     length: (p) => 0.018 * p.furLength,
-    thickness: (p) => 0.0018 * p.furThickness,
+    thickness: (p) => 0.0013 * p.furThickness,
     messiness: (p) => 0.35 * p.furMessiness,
   },
 };

@@ -183,7 +183,7 @@ export function scatterFur(field: SkinField, settings: FurSettings, share = 1, k
       roots[o] = p[0]; roots[o + 1] = p[1]; roots[o + 2] = p[2];
       directions[o] = dir[0]; directions[o + 1] = dir[1]; directions[o + 2] = dir[2];
       lengths[count] = settings.length * (0.75 + 0.5 * hash01(i, k, 6));
-      const tint = 0.88 + 0.24 * hash01(i, k, 7);
+      const tint = 0.93 + 0.14 * hash01(i, k, 7);
       const color = field.colorAt(p, around);
       colors[o] = color[0] * tint; colors[o + 1] = color[1] * tint; colors[o + 2] = color[2] * tint;
       count++;
